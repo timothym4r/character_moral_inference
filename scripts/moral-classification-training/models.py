@@ -5,7 +5,7 @@ from transformers import BertTokenizer, BertModel
 import torch.nn as nn
 
 class Autoencoder(nn.Module):
-    def __init__(self, input_dim=768, latent_dim=20, dropout=0.0):
+    def __init__(self, input_dim=768, latent_dim=20, dropout=0.1):
         super().__init__()
         self.encoder = nn.Sequential(
             nn.Linear(input_dim, 256),

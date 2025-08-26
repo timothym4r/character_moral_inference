@@ -18,7 +18,6 @@ from torch.nn.functional import normalize
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import gc, os, json, torch
 
-
 def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, pooling_method = "mean"):
     all_embeddings = []
 
@@ -47,7 +46,6 @@ def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, 
                 raise ValueError(f"Pooling method {pooling_method} is not supported")
 
             all_embeddings.append(sentence_embeddings.cpu())
-
 
             torch.cuda.empty_cache()
             gc.collect()
@@ -144,25 +142,71 @@ def data_preprocess(
 
     print("Saved train/test datasets using model:", model_name)
 
-if __name__ == "__main__":
+def main(args):
+    """
+    Main function to preprocess data for moral classification training.
 
+    This function serves as the entry point for the data preprocessing pipeline.
+    It takes in command-line arguments, extracts the necessary parameters, and
+    invokes the `data_preprocess` function to process the data accordingly.
+
+    Args:
+        args (argparse.Namespace): A namespace object containing the following attributes:
+            - model_name (str): The name of the model to be used for processing.
+            - source_data_path (str): The file path to the source data to be processed.
+            - output_dir (str): The directory where the processed data will be saved.
+            - threshold (float): A threshold value used for filtering or classification.
+            - moral_only_past_sentences (bool): A flag indicating whether to include only
+              morally relevant past sentences in the processing.
+            - pooling_method (str): The method to be used for pooling data (e.g., "mean", "max").
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: If any of the required arguments are missing or invalid.
+        FileNotFoundError: If the source data file does not exist.
+        Exception: For any other errors encountered during data preprocessing.
+
+    Example:
+        To run the function, use the following command-line arguments:
+        ```
+        python data_processing.py --model_name "bert-base-uncased" \
+                                  --source_data_path "/path/to/source_data.json" \
+                                  --output_dir "/path/to/output_dir" \
+                                  --threshold 0.5 \
+                                  --moral_only_past_sentences True \
+                                  --pooling_method "mean"
+        ```
+    """
+    if args.reprocess or not os.path.exists(os.path.join(args.output_dir, f"train_data_{args.pooling_method}.json")):
+        print(f"Data files not found in {args.output_dir}. Running data preprocessing...")
+
+        data_preprocess(
+            model_name=args.model_name,
+            source_data_path=args.source_data_path,
+            output_dir=args.output_dir,
+            threshold=args.threshold,
+            moral_only_past_sentences=args.moral_only_past_sentences,
+            pooling_method=args.pooling_method
+        )
+    else:
+        print(
+            f"Data files found in {args.output_dir}. Skipping data preprocessing. "
+            f"Use --reprocess to force regeneration.")
+
+if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Preprocess data for moral relevance classification")
     parser.add_argument("--model_name", type=str, required=True, help="Hugging Face model name")
-    parser.add_argument("--source_data_path", type=str, required=True, help="Path to the source data JSON file")
+    parser.add_argument("--source_data_path", type=str, required=False, help="Path to the source data JSON file")
     parser.add_argument("--output_dir", type=str, required=True, help="Directory to save processed data")
     parser.add_argument("--threshold", type=int, default=100, help="Minimum number of sentences per character")
     parser.add_argument("--moral_only_past_sentences", action="store_true", help="Use only moral past sentences for training")
+    parser.add_argument("--reprocess", action="store_true", help="Reprocess data even if it exists")
     parser.add_argument("--pooling_method", type=str, default="mean", choices=["mean", "cls"], help="Pooling method for sentence embeddings")
 
     args = parser.parse_args()
 
-    data_preprocess(
-        model_name=args.model_name,
-        source_data_path=args.source_data_path,
-        output_dir=args.output_dir,
-        threshold=args.threshold,
-        moral_only_past_sentences=args.moral_only_past_sentences,
-        pooling_method=args.pooling_method
-    )
+    main(args)

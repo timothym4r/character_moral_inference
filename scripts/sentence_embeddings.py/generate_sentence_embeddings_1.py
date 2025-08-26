@@ -9,6 +9,7 @@ def generate_embeddings(tokenizer, model, sentences, batch_size=32, max_length=2
                         pooling="mean", exclude_special_tokens=True, to_numpy=True, device=None):
 
     """Generate mean-pooled sentence embeddings"""
+
     if device is None:
         device = next(model.parameters()).device
     out_chunks = []
@@ -40,8 +41,15 @@ def generate_embeddings(tokenizer, model, sentences, batch_size=32, max_length=2
 
 import argparse
 
-def main():
-    # Load data
+def main(args):
+    # If the `--regenerate` flag is not set and the file exists, we will not regenerate embeddings
+    if not args.regenerate and args.output_dir:
+        import os
+        # Check if the output directory exists and contains the embeddings file
+        if os.path.exists(os.path.join(args.output_dir, "bert_embeddings.pkl")) and os.path.exists(os.path.join(args.output_dir, "roberta_embeddings.pkl")):
+            print("Embeddings already exist. Use --regenerate to overwrite.")
+            return
+        print("Embeddings do not exist or --regenerate flag is set. Proceeding to forced embeddings regeneration...")
 
     # Define model names
     model_names_dictionary = {
@@ -63,22 +71,6 @@ def main():
     roberta_embeddings = {}
     deberta_embeddings = {}
     electra_embeddings = {}
-
-    parser = argparse.ArgumentParser(description="Generate sentence embeddings for characters in movies.")
-    parser.add_argument("--data_file", type=str, required=True, help="Path to the data file containing sentences.")
-    parser.add_argument("--batch_size", type=int, default=32, help="Batch size for embedding generation.")
-    parser.add_argument("--max_length", type=int, default=256, help="Maximum length of sentences for tokenization.")
-    parser.add_argument("--pooling", type=str, default="mean", choices=["mean", "cls"], help="Pooling strategy for embeddings.")
-    parser.add_argument("--exclude_special_tokens", action="store_true", help="Exclude special tokens from embeddings.")
-    parser.add_argument("--to_numpy", action="store_true", help="Return embeddings as numpy arrays instead of tensors.")
-    args = parser.parse_args()
-    
-    # Print the configuration
-    print(f"Configuration: {args}")
-
-    # Check if the data file path is provided
-    if not data_file_path:
-        raise ValueError("Please set the correct path to your data file in the script.")
     
     # Extract arguments from the command line
     data_file_path = args.data_file
@@ -87,6 +79,10 @@ def main():
     pooling = args.pooling
     exclude_special_tokens = args.exclude_special_tokens
     to_numpy = args.to_numpy
+
+    # Check if the data file path is provided
+    if not data_file_path:
+        raise ValueError("Please set the correct path to your data file in the script.")
 
     print("Generating embeddings...")
 
@@ -122,7 +118,7 @@ def main():
     import pickle
     import os
 
-    output_dir = "data/"
+    output_dir = args.output_dir
     os.makedirs(output_dir, exist_ok=True)
 
     # Save each embedding dictionary
@@ -141,6 +137,21 @@ def main():
     print("All embeddings saved.")
 
 if __name__ == "__main__":
-    main()
+
+    parser = argparse.ArgumentParser(description="Generate sentence embeddings for characters in movies.")
+    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save the generated embeddings.")
+    parser.add_argument("--data_file", type=str, default="data", help="Path to the data file containing sentences.")
+    parser.add_argument("--regenerate", action="store_true", help="Regenerate embeddings even if they already exist.")
+    parser.add_argument("--batch_size", type=int, default=32, help="Batch size for embedding generation.")
+    parser.add_argument("--max_length", type=int, default=256, help="Maximum length of sentences for tokenization.")
+    parser.add_argument("--pooling", type=str, default="mean", choices=["mean", "cls"], help="Pooling strategy for embeddings.")
+    parser.add_argument("--exclude_special_tokens", action="store_true", help="Exclude special tokens from embeddings.")
+    parser.add_argument("--to_numpy", action="store_true", help="Return embeddings as numpy arrays instead of tensors.")
+    args = parser.parse_args()
+    
+    # Print the configuration
+    print(f"Configuration: {args}")
+
+    main(args)
     print("Embeddings generation completed and saved to disk.")
 

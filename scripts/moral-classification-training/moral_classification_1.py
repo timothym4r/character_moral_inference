@@ -383,6 +383,11 @@ def log_metrics_to_csv(log_path, model_name, epoch, train_losses, train_metrics,
 def evaluate_classifier(model_H, classifier, dataset, tokenizer, use_one_hot=False, character_embedding=None, batch_size = 32, inject_embedding=True,
                         classification_pooling_method = "cls", injection_pooling_method = "mean", injection_method = "sum"):
 
+    # We do not need to use of the classification_pooling_method, injection_method, and injection_pooling_method:
+    # classification_pooling_method depends on the base model and is handled inside the classifier
+    # injection_method is handled in the classifier
+    # injection_pooling_method is handled during the generation of avg_embedding in the data preprocessing step
+
     model_H.eval()
     classifier.eval()
     if character_embedding:
@@ -456,40 +461,55 @@ model_names = {
 
 import argparse
 
-def main():
-    parser = argparse.ArgumentParser(description="Train Moral Classifier")
-    
-    parser.add_argument("--input_dir", type=str, required=True, help="Directory containing the input JSON files")
-    parser.add_argument("--model_name", type=str, default="bert-base-uncased", help="Pre-trained model name")
-    parser.add_argument("--log_path", type=str, default="logs/moral_classification_log.csv", help="Path to save the log CSV file")
-    parser.add_argument("--use_vae", action="store_true", help="Use Variational Autoencoder for character embeddings")
-    parser.add_argument("--use_one_hot", action="store_true", help="Use one-hot encoding for character embeddings")
-    parser.add_argument("--train_n_last_layers", type=int, default=4, help="Number of last layers of the model to train")
-    parser.add_argument("--latent_dim", type=int, default=20, help="Latent dimension for the autoencoder")
-    parser.add_argument("--alpha", type=float, default=0.1, help="Weight for classification loss")
-    parser.add_argument("--beta", type=float, default=0.01, help="Weight for orthogonality loss")
-    parser.add_argument("--num_epochs", type=int, default=10, help="Number of training epochs")
-    parser.add_argument("--batch_size", type=int, default=32, help="Batch size for training")
-    parser.add_argument("--lr_1", type=float, default=1e-3, help="Learning rate for classification head and autoencoder")
-    parser.add_argument("--lr_2", type=float, default=2e-5, help="Learning rate for the pre-trained model")
-    parser.add_argument("--dropout_rate", type=float, default=0.1, help="Dropout rate for the autoencoder")
-    parser.add_argument("--clip_grad_norm", type=float, default=5.0, help="Gradient clipping norm value")
-    parser.add_argument("--weight_decay", type=float, default=1e-5, help="Weight decay for the optimizer")
-    parser.add_argument("--scheduler_type", type=str, default="cosine", choices=["cosine", "step", "plateau"], help="Type of learning rate scheduler")
-    parser.add_argument("--pos_weight", type=float, default=4.0, help="Positive class weight for the loss function")
-    parser.add_argument("--early_stopping_patience", type=int, default=3, help="Patience for early stopping")
-    parser.add_argument("--early_stopping_metric", type=str, default="f1_score", help="Metric to monitor for early stopping")
-    parser.add_argument("--minimize_metric", action="store_true", help="Whether to minimize the early stopping metric")
-    parser.add_argument("--inject_embedding", action="store_true", help="Inject character embeddings into the classifier")
-    parser.add_argument("--classification_pooling_method", type=str, default="cls", choices=["cls", "mean"], help="Pooling method for classification")
-    parser.add_argument("--injection_pooling_method", type=str, default="mean", choices=["mean", "max"], help="Pooling method for injection")
-    parser.add_argument("--injection_method", type=str, default="sum", choices=["sum", "concat"], help="Method to inject embeddings")
+def main(args):
+    """
+    Main function to train a moral classification model and save the trained components.
+    Args:
+        args (argparse.Namespace): A namespace object containing the following attributes:
+            - input_dir (str): Path to the input directory containing training and testing data.
+            - model_name (str): Name of the model to be used for training.
+            - log_path (str): Path to the log file for recording training progress and metrics.
+            - use_vae (bool): Whether to use a Variational Autoencoder (VAE) in the model.
+            - use_one_hot (bool): Whether to use one-hot encoding for character embeddings.
+            - train_n_last_layers (int): Number of last layers to fine-tune during training.
+            - latent_dim (int): Dimensionality of the latent space for the VAE.
+            - alpha (float): Weight for the reconstruction loss in the VAE.
+            - beta (float): Weight for the KL divergence loss in the VAE.
+            - num_epochs (int): Number of training epochs.
+            - batch_size (int): Batch size for training.
+            - lr_1 (float): Learning rate for the first optimizer.
+            - lr_2 (float): Learning rate for the second optimizer.
+            - dropout_rate (float): Dropout rate to be applied in the model.
+            - clip_grad_norm (float): Maximum norm for gradient clipping.
+            - weight_decay (float): Weight decay (L2 regularization) for the optimizer.
+            - scheduler_type (str): Type of learning rate scheduler to use.
+            - pos_weight (float): Weight for positive samples in the loss function.
+            - early_stopping_patience (int): Number of epochs to wait for improvement before early stopping.
+            - early_stopping_metric (str): Metric to monitor for early stopping.
+            - minimize_metric (bool): Whether to minimize the early stopping metric.
+            - inject_embedding (bool): Whether to inject character embeddings into the model.
+            - classification_pooling_method (str): Pooling method for classification (e.g., "mean", "max").
+            - injection_pooling_method (str): Pooling method for embedding injection (e.g., "mean", "max").
+            - injection_method (str): Method for injecting embeddings into the model.
+    Workflow:
+        1. Reads training and testing data from the specified input directory.
+        2. Initializes a CSV log file for recording training progress.
+        3. Creates training and validation datasets using the `MoralRelevanceDataset` class.
+        4. Trains the moral classification model using the `train_moral_classifier` function.
+        5. Saves the trained model components (`model_H`, `classifier`, and `character_embedding`) to the output directory.
+    Outputs:
+        - Trained model components are saved in the `models/moral_classifier` directory:
+            - `model_H.pth`: The trained model_H state dictionary.
+            - `classifier.pth`: The trained classifier state dictionary.
+            - `character_embedding.pth`: The trained character embedding state dictionary (if applicable).
+    """
 
-    args = parser.parse_args()
+    # We can print the arguments to check if they are set correctly
+    print(args)
 
     input_dir = args.input_dir
     model_name = args.model_name
-    log_path = args.log_path
+    # log_path = args.log_path
     use_vae = args.use_vae
     use_one_hot = args.use_one_hot
     train_n_last_layers = args.train_n_last_layers
@@ -515,12 +535,13 @@ def main():
 
     input_dir = os.path.join(input_dir, model_name)
 
-    with open(os.path.join(input_dir, "train_data.json"), "r") as f:
+    with open(os.path.join(input_dir, f"train_data_{injection_pooling_method}.json"), "r") as f:
         train_data = json.load(f)
 
-    with open(os.path.join(input_dir, "test_data.json"), "r") as f:
+    with open(os.path.join(input_dir, f"test_data_{injection_pooling_method}.json"), "r") as f:
         test_data = json.load(f)
 
+    log_path = os.path.join(args.output_dir, "logs", f"{model_name}_moral_classification_log.csv")
     init_csv(log_path)
 
     train_dataset = MoralRelevanceDataset(train_data, tokenizer=None, use_one_hot=False)
@@ -557,7 +578,7 @@ def main():
     )
 
     # Save the trained models
-    output_dir = "models/moral_classifier"
+    output_dir = args.output_dir
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -574,4 +595,34 @@ def main():
         torch.save(character_embedding.state_dict(), character_embedding_save_path)
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Train Moral Classifier")
+
+    parser.add_argument("--input_dir", type=str, required=True, help="Directory containing the input JSON files")
+    parser.add_argument("--output_dir", type=str, default="models/moral_classifier", help="Directory to save the trained models")
+    parser.add_argument("--model_name", type=str, default="bert-base-uncased", help="Pre-trained model name")
+    # parser.add_argument("--log_path", type=str, default="logs/moral_classification_log.csv", help="Path to save the log CSV file")
+    parser.add_argument("--use_vae", action="store_true", help="Use Variational Autoencoder for character embeddings")
+    parser.add_argument("--use_one_hot", action="store_true", help="Use one-hot encoding for character embeddings")
+    parser.add_argument("--train_n_last_layers", type=int, default=4, help="Number of last layers of the model to train")
+    parser.add_argument("--latent_dim", type=int, default=20, help="Latent dimension for the autoencoder")
+    parser.add_argument("--alpha", type=float, default=0.1, help="Weight for classification loss")
+    parser.add_argument("--beta", type=float, default=0.01, help="Weight for orthogonality loss")
+    parser.add_argument("--num_epochs", type=int, default=10, help="Number of training epochs")
+    parser.add_argument("--batch_size", type=int, default=32, help="Batch size for training")
+    parser.add_argument("--lr_1", type=float, default=1e-3, help="Learning rate for classification head and autoencoder")
+    parser.add_argument("--lr_2", type=float, default=2e-5, help="Learning rate for the pre-trained model")
+    parser.add_argument("--dropout_rate", type=float, default=0.1, help="Dropout rate for the autoencoder")
+    parser.add_argument("--clip_grad_norm", type=float, default=5.0, help="Gradient clipping norm value")
+    parser.add_argument("--weight_decay", type=float, default=1e-5, help="Weight decay for the optimizer")
+    parser.add_argument("--scheduler_type", type=str, default="cosine", choices=["cosine", "step", "plateau"], help="Type of learning rate scheduler")
+    parser.add_argument("--pos_weight", type=float, default=4.0, help="Positive class weight for the loss function")
+    parser.add_argument("--early_stopping_patience", type=int, default=3, help="Patience for early stopping")
+    parser.add_argument("--early_stopping_metric", type=str, default="f1_score", help="Metric to monitor for early stopping")
+    parser.add_argument("--minimize_metric", action="store_true", help="Whether to minimize the early stopping metric")
+    parser.add_argument("--inject_embedding", action="store_true", help="Inject character embeddings into the classifier")
+    parser.add_argument("--classification_pooling_method", type=str, default="cls", choices=["cls", "mean"], help="Pooling method for classification")
+    parser.add_argument("--injection_pooling_method", type=str, default="mean", choices=["mean", "max"], help="Pooling method for injection")
+    parser.add_argument("--injection_method", type=str, default="sum", choices=["sum", "concat"], help="Method to inject embeddings")
+
+    args = parser.parse_args()
+    main(args)

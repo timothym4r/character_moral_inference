@@ -312,6 +312,8 @@ def load_or_compute_embeddings(embeddings_path, recompute=False, pooling_method 
 
 def run_analysis(embeddings_path, recompute_embeddings = False, pooling_method = "cls", model_name = "bert-base-uncased"):
     """This will load the data required, run the methods, and store the results.
+
+    The results will be stored in the same folder as the embeddings data.
     
     Args:
         embeddings_path (str): Path to the folder containing the embeddings data or the BERT-based model that computes them.
@@ -351,7 +353,17 @@ def run_analysis(embeddings_path, recompute_embeddings = False, pooling_method =
 
     return method_1_result, method_2_result
 
-def main():
+def main(args):
+
+    run_analysis(
+        embeddings_path=args.source_folder_path,
+        recompute_embeddings=args.recompute_embeddings,
+        model_name=args.model_name,
+        pooling_method="cls" if args.cls_embeddings else "mean"
+    )
+
+if __name__ == "__main__":
+
     parser = argparse.ArgumentParser(description="Example CLI script")
     
     # Positional argument
@@ -377,15 +389,10 @@ def main():
     # Currently we only support CLS and mean-pooled embeddings.
     parser.add_argument("--cls_embeddings", action="store_true", help="Use CLS embeddings for injection")
 
+    parser.add_argument("--sentence_data_path", type=str, default=SENTENCE_DATA_PATH, help="Path to the sentence data file")
+    SENTENCE_DATA_PATH= parser.get_default('sentence_data_path')
+
     # Parse the arguments
     args = parser.parse_args()  
-    
-    run_analysis(
-        embeddings_path=args.source_folder_path,
-        recompute_embeddings=args.recompute_embeddings,
-        model_name=args.model_name,
-        pooling_method="cls" if args.cls_embeddings else "mean"
-    )
 
-if __name__ == "__main__":
-    main()
+    main(args)
