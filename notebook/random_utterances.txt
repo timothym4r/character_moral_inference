@@ -1,0 +1,500 @@
+🎬 Movie: Proposal, The | 🎭 Character: MARGARET
+📝 Original:  They love you.   Do you get that? 
+🔲 Masked:    they [MASK] you.   do you get that? 
+✅ Ground Truth: love
+--------------------------------------------------------------------------------
+🎬 Movie: Frozen | 🎭 Character: LYNCH
+📝 Original:  Help me up. 
+🔲 Masked:    [MASK] me up. 
+✅ Ground Truth: help
+--------------------------------------------------------------------------------
+🎬 Movie: Seventh Seal, The | 🎭 Character: JOF
+📝 Original:  (sings) On a lily branch a dove is perched Against the summer sky, She sings a wondrous song of Christ And there's great joy on high. 
+🔲 Masked:    (sings) on a lily branch a dove is perched against the summer sky, she sings a wondrous song of [MASK] and there's great joy on high. 
+✅ Ground Truth: christ
+--------------------------------------------------------------------------------
+🎬 Movie: JFK | 🎭 Character: LIZ
+📝 Original:  I'm not fighting you, Jim, I'm just trying to reach you.  You've changed. 
+🔲 Masked:    i'm not [MASK] you, jim, i'm just trying to reach you.  you've changed. 
+✅ Ground Truth: fighting
+--------------------------------------------------------------------------------
+🎬 Movie: State and Main | 🎭 Character: MARTY
+📝 Original:  Nobody knows it but us.  Alright?  It says here... (to group) Are we together on this? (beat, each nods) Because it's sink or swim here, pals... 
+🔲 Masked:    nobody knows it but us.  alright?  it says here... (to group) are we [MASK] on this? (beat, each nods) because it's sink or swim here, pals... 
+✅ Ground Truth: together
+--------------------------------------------------------------------------------
+🎬 Movie: Duck Soup | 🎭 Character: GROUCHO
+📝 Original:  (To Trentino) So -- you've come to ask for clemency! I'll give the enemy no quarter -- not a dime... 
+🔲 Masked:    (to trentino) so -- you've come to ask for clemency! i'll give the [MASK] no quarter -- not a dime... 
+✅ Ground Truth: enemy
+--------------------------------------------------------------------------------
+🎬 Movie: Les Miserables | 🎭 Character: ENJOLRAS
+📝 Original:  Let us die facing our foes! Make them bleed while we can! 
+🔲 Masked:    let us [MASK] facing our foes! make them bleed while we can! 
+✅ Ground Truth: die
+--------------------------------------------------------------------------------
+🎬 Movie: Funny People | 🎭 Character: GEORGE
+📝 Original:  See? She's funny. She can take a joke, she's not sensitive. I think I'm falling in love with both of you. 
+🔲 Masked:    see? she's funny. she can take a joke, she's not sensitive. i think i'm falling in [MASK] with both of you. 
+✅ Ground Truth: love
+--------------------------------------------------------------------------------
+🎬 Movie: Cradle 2 the Grave | 🎭 Character: TOMMY
+📝 Original:  Nah, I'm just fucking with you. (then) But my momma did it, and don't you dare start disrespecting my momma... And so on... OFF which, we... 
+🔲 Masked:    nah, i'm just [MASK] with you. (then) but my momma did it, and don't you dare start disrespecting my momma... and so on... off which, we... 
+✅ Ground Truth: fucking
+--------------------------------------------------------------------------------
+🎬 Movie: I Am Number Four | 🎭 Character: SIX
+📝 Original:  She sheathes her dagger and helps John up. 
+🔲 Masked:    she sheathes her dagger and [MASK] john up. 
+✅ Ground Truth: helps
+--------------------------------------------------------------------------------
+🎬 Movie: Major League | 🎭 Character: LYNN
+📝 Original:  Tom and I are getting married in the fall. 
+🔲 Masked:    tom and i are getting [MASK] in the fall. 
+✅ Ground Truth: married
+--------------------------------------------------------------------------------
+🎬 Movie: Belle | 🎭 Character: LORD MANSFIELD
+📝 Original:  It is my opinion, that the state of slavery is so odious a position that nothing may support it. This case has displayed with searing clarity the depravity of any such nation whose choice is to practice it. You may be certain that I have laboured over my judgement and statements today and am in full understanding of all of the ramifications. Justice be done,though the heavens may fall. JOHN'S eyes brim at the realisation of those words. 
+🔲 Masked:    it is my opinion, that the state of slavery is so odious a position that nothing may support it. this case has displayed with searing clarity the [MASK] of any such nation whose choice is to practice it. you may be certain that i have laboured over my judgement and statements today and am in full understanding of all of the ramifications. justice be done,though the heavens may fall. john's eyes brim at the realisation of those words. 
+✅ Ground Truth: depravity
+--------------------------------------------------------------------------------
+🎬 Movie: Distinguished Gentleman, The | 🎭 Character: HOMER
+📝 Original:  You have to be shitting me. 
+🔲 Masked:    you have to be [MASK] me. 
+✅ Ground Truth: shitting
+--------------------------------------------------------------------------------
+🎬 Movie: Hudson Hawk | 🎭 Character: DARWIN
+📝 Original:  I'll torture you so slowly you'll think it's a career!  I'll kill your family, your friends, and the bitch you took to the Prom! 
+🔲 Masked:    i'll [MASK] you so slowly you'll think it's a career!  i'll kill your family, your friends, and the bitch you took to the prom! 
+✅ Ground Truth: torture
+--------------------------------------------------------------------------------
+🎬 Movie: Pitch Black | 🎭 Character: RIDDICK
+📝 Original:  (to Fry) Be runnin' about 10 paces ahead. I want light on my back -- but not in my eyes. And check your cuts. These things know our blood now. 
+🔲 Masked:    (to fry) be runnin' about 10 paces ahead. i want light on my back -- but not in my eyes. and check your cuts. these things know our [MASK] now. 
+✅ Ground Truth: blood
+--------------------------------------------------------------------------------
+🎬 Movie: Hellraiser | 🎭 Character: LARRY
+📝 Original:  You fucking ass-holes. 
+🔲 Masked:    you [MASK] ass-holes. 
+✅ Ground Truth: fucking
+--------------------------------------------------------------------------------
+🎬 Movie: Point Break | 🎭 Character: BODHI
+📝 Original:  I made that one mistake you pray you'll never make-- 
+🔲 Masked:    i made that one mistake you [MASK] you'll never make-- 
+✅ Ground Truth: pray
+--------------------------------------------------------------------------------
+🎬 Movie: Fright Night | 🎭 Character: ED
+📝 Original:  Hey! Anybody here? They pass the empty MASTER BEDROOM -- where we saw ADAM's parents slaughtered. Now its clean and empty. Then Ed turns into ADAM's room. It's full of geekery. Action figures, the like. Charlie sticks behind him. The guys don't register the mostly obscured form of SOMEBODY HIDING BEHIND the door. A LARGE MALE figure. Ed catches sight of the guy, and SPINS toward it, freaked. Charlie also reacts, scared. 
+🔲 Masked:    hey! anybody here? they pass the empty [MASK] bedroom -- where we saw adam's parents slaughtered. now its clean and empty. then ed turns into adam's room. it's full of geekery. action figures, the like. charlie sticks behind him. the guys don't register the mostly obscured form of somebody hiding behind the door. a large male figure. ed catches sight of the guy, and spins toward it, freaked. charlie also reacts, scared. 
+✅ Ground Truth: master
+--------------------------------------------------------------------------------
+🎬 Movie: Sunshine Cleaning | 🎭 Character: NORAH
+📝 Original:  Winston cleans up pretty good. 
+🔲 Masked:    winston [MASK] up pretty good. 
+✅ Ground Truth: cleans
+--------------------------------------------------------------------------------
+🎬 Movie: Friday the 13th Part VIII: Jason Takes Manhattan | 🎭 Character: MISS VAN DEUSEN
+📝 Original:  Please, don't hurt her... 
+🔲 Masked:    please, don't [MASK] her... 
+✅ Ground Truth: hurt
+--------------------------------------------------------------------------------
+🎬 Movie: Ace Ventura: Pet Detective | 🎭 Character: ACE
+📝 Original:  Or, we could try it now. Ace frantically tries to start the car. His new friend continues around the car beating the living shit out of it. 
+🔲 Masked:    or, we could try it now. ace frantically tries to start the car. his new friend continues around the car beating the living [MASK] out of it. 
+✅ Ground Truth: shit
+--------------------------------------------------------------------------------
+🎬 Movie: Sister Act | 🎭 Character: MOTHER SUPERIOR
+📝 Original:  Mary Clarence! 
+🔲 Masked:    [MASK] clarence! 
+✅ Ground Truth: mary
+--------------------------------------------------------------------------------
+🎬 Movie: Indiana Jones and the Raiders of the Lost Ark | 🎭 Character: INDY
+📝 Original:  Holy shit. 
+🔲 Masked:    [MASK] shit. 
+✅ Ground Truth: holy
+--------------------------------------------------------------------------------
+🎬 Movie: Fargo | 🎭 Character: GRIMSRUD
+📝 Original:  Or your fucking wife, you know. 
+🔲 Masked:    or your [MASK] wife, you know. 
+✅ Ground Truth: fucking
+--------------------------------------------------------------------------------
+🎬 Movie: 28 Days Later | 🎭 Character: HENRY
+📝 Original:  Eight days ago I found Jones with his gun in this mouth. He said he was going to kill himself because there was no future. What could I say to him? We kill all the infected or wait until they starve to death. And then what? What do nine men do except wait to die themselves? (BEAT) I moved us from the blockade, I set the radio broadcasting, and I promised them women. Because women mean children. 
+🔲 Masked:    eight days ago i found jones with his gun in this mouth. he said he was going to kill himself because there was no future. what could i say to him? we kill all the [MASK] or wait until they starve to death. and then what? what do nine men do except wait to die themselves? (beat) i moved us from the blockade, i set the radio broadcasting, and i promised them women. because women mean children. 
+✅ Ground Truth: infected
+--------------------------------------------------------------------------------
+🎬 Movie: Philadelphia | 🎭 Character: BELINDA
+📝 Original:  Fact. Andrew Beckett performed at a consistently mediocre level. Fact. He made a grievous error on a multi-million dollar lawsuit... Fact. He claims he is the victim of lies and deceit. Fact. Andrew Beckett lied to his employers, going to great efforts to conceal his disease from them. Fact. He was successful in his duplicity. The partners at Wyant Wheeler did not know Andrew Beckett had AIDS when they fired him... 
+🔲 Masked:    fact. andrew beckett performed at a consistently mediocre level. fact. he made a grievous error on a multi-million dollar lawsuit... fact. he claims he is the victim of lies and deceit. fact. andrew beckett [MASK] to his employers, going to great efforts to conceal his disease from them. fact. he was successful in his duplicity. the partners at wyant wheeler did not know andrew beckett had aids when they fired him... 
+✅ Ground Truth: lied
+--------------------------------------------------------------------------------
+🎬 Movie: Star Wars: Attack of the Clones | 🎭 Character: LAMA SU
+📝 Original:  We modified their genetic structure to make them less independent than the original host. As a result they are totally obedient, taking any order without question. 
+🔲 Masked:    we modified their genetic structure to make them less independent than the original host. as a result they are totally obedient, taking any [MASK] without question. 
+✅ Ground Truth: order
+--------------------------------------------------------------------------------
+🎬 Movie: Who's Your Daddy | 🎭 Character: PRINCIPAL MERKIN
+📝 Original:  You don't even have your high school diploma yet, Mr. Nelson. I'm still the boss of you. 
+🔲 Masked:    you don't even have your high school diploma yet, mr. nelson. i'm still the [MASK] of you. 
+✅ Ground Truth: boss
+--------------------------------------------------------------------------------
+🎬 Movie: True Romance | 🎭 Character: CLARENCE
+📝 Original:  Riddle me this, Batman. If you're all so much in love with each other, what the fuck are you doing here? I'm sure you got better things to do with your time than walk around in circles starin' up a panther's ass. Your guy's interested because with that much shit at his fingertips he can play Joe fuckin' Hollywood till the wheels come off. He can sell it, he can snort it, he can play Santa Claus with it. At the price he's payin', he'll be everybody's best friend. And, you know, that's what we're talkin' about here. I'm not puttin' him down. Hey, let him run wild. Have a ball, it's his money. But, don't expect me to hang around forever waitin' for you guys to grow some guts. 
+🔲 Masked:    riddle me this, batman. if you're all so much in love with each other, what the [MASK] are you doing here? i'm sure you got better things to do with your time than walk around in circles starin' up a panther's ass. your guy's interested because with that much shit at his fingertips he can play joe fuckin' hollywood till the wheels come off. he can sell it, he can snort it, he can play santa claus with it. at the price he's payin', he'll be everybody's best friend. and, you know, that's what we're talkin' about here. i'm not puttin' him down. hey, let him run wild. have a ball, it's his money. but, don't expect me to hang around forever waitin' for you guys to grow some guts. 
+✅ Ground Truth: fuck
+--------------------------------------------------------------------------------
+🎬 Movie: American Shaolin: King of Kickboxers II | 🎭 Character: DREW
+📝 Original:  He hurts more than me, he's just not bleeding, that's all. 
+🔲 Masked:    he [MASK] more than me, he's just not bleeding, that's all. 
+✅ Ground Truth: hurts
+--------------------------------------------------------------------------------
+🎬 Movie: Revenant, The | 🎭 Character: BRIDGER
+📝 Original:  They can have my share too. I owe Glass that at least. 
+🔲 Masked:    they can have my [MASK] too. i owe glass that at least. 
+✅ Ground Truth: share
+--------------------------------------------------------------------------------
+🎬 Movie: True Romance | 🎭 Character: ALABAMA
+📝 Original:  (comically) Clean clothes. There is a god, 
+🔲 Masked:    (comically) [MASK] clothes. there is a god, 
+✅ Ground Truth: clean
+--------------------------------------------------------------------------------
+🎬 Movie: Mask, The | 🎭 Character: TINA
+📝 Original:  That's nice. (sits down) You know, I hardly ever stop by here. It's hard to believe it was just a garbage heap. 
+🔲 Masked:    that's nice. (sits down) you know, i hardly ever stop by here. it's hard to believe it was just a [MASK] heap. 
+✅ Ground Truth: garbage
+--------------------------------------------------------------------------------
+🎬 Movie: Flight | 🎭 Character: EVANS
+📝 Original:  The flight was pre-ordained. I've prayed on it Captain. Vicki and I have prayed on it. There's only one judge -- 
+🔲 Masked:    the flight was pre-ordained. i've [MASK] on it captain. vicki and i have prayed on it. there's only one judge -- 
+✅ Ground Truth: prayed
+--------------------------------------------------------------------------------
+🎬 Movie: White Jazz | 🎭 Character: ME
+📝 Original:  -everyone knows I'm a piece-a-shit. What are you proving? Bradley's the guy flanking you right now. The guy who's vulnerable right now. 
+🔲 Masked:    -everyone knows i'm a piece-a-shit. what are you proving? bradley's the guy flanking you right now. the guy who's [MASK] right now. 
+✅ Ground Truth: vulnerable
+--------------------------------------------------------------------------------
+🎬 Movie: Youth in Revolt | 🎭 Character: NICK
+📝 Original:  Sheeni, the police are here! He ducks down from the window as a chopper buzzes overhead. 
+🔲 Masked:    sheeni, the [MASK] are here! he ducks down from the window as a chopper buzzes overhead. 
+✅ Ground Truth: police
+--------------------------------------------------------------------------------
+🎬 Movie: Descendants, The | 🎭 Character: SCOTTIE
+📝 Original:  The food here at the club is so good. 
+🔲 Masked:    the [MASK] here at the club is so good. 
+✅ Ground Truth: food
+--------------------------------------------------------------------------------
+🎬 Movie: Revolutionary Road | 🎭 Character: JACK
+📝 Original:  I'm going to need your help this morning, Old Scout. 
+🔲 Masked:    i'm going to need your [MASK] this morning, old scout. 
+✅ Ground Truth: help
+--------------------------------------------------------------------------------
+🎬 Movie: Harold and Kumar Go to White Castle | 🎭 Character: KUMAR
+📝 Original:  (disappointed) Very well. I guess we'll have to do this the old fashioned way. KUMAR puts a nitrous oxide mask over the Patient's face. Harold gives Kumar a look-- "What the fuck are you doing?" 
+🔲 Masked:    (disappointed) very well. i guess we'll have to do this the old fashioned way. kumar puts a nitrous oxide mask over the patient's face. harold gives kumar a look-- "what the [MASK] are you doing?" 
+✅ Ground Truth: fuck
+--------------------------------------------------------------------------------
+🎬 Movie: Days of Heaven | 🎭 Character: BENSON
+📝 Original:  Don't believe me, then. You shouldn't. But why not check it out, sir? Hire a detective in Chicago. It won't cost much. What's there to lose? Chuck's brow darkens as Benson goes on. For a moment we glimpse the anger that would be unleashed if ever he woke up. Somewhere he already knows the truth but refuses to acknowledge it. 
+🔲 Masked:    don't believe me, then. you shouldn't. but why not check it out, sir? hire a detective in chicago. it won't cost much. what's there to lose? chuck's brow darkens as benson goes on. for a moment we glimpse the anger that would be unleashed if ever he woke up. somewhere he already knows the truth but [MASK] to acknowledge it. 
+✅ Ground Truth: refuses
+--------------------------------------------------------------------------------
+🎬 Movie: Serenity | 🎭 Character: MAL
+📝 Original:  But you fog things up. You always have -- you spin me about. I wish like hell you was elsewhere. 
+🔲 Masked:    but you fog things up. you always have -- you spin me about. i wish like [MASK] you was elsewhere. 
+✅ Ground Truth: hell
+--------------------------------------------------------------------------------
+🎬 Movie: Cold Mountain | 🎭 Character: VEASEY
+📝 Original:  (emerges from the woods) How do you work this damn thing? 
+🔲 Masked:    (emerges from the woods) how do you work this [MASK] thing? 
+✅ Ground Truth: damn
+--------------------------------------------------------------------------------
+🎬 Movie: Rust and Bone | 🎭 Character: ALI
+📝 Original:  I know her. Sam pulls off his towel. He watches his father who is riveted to the screen, glued to the looping footage of the accident. 
+🔲 Masked:    i know her. sam pulls off his towel. he watches his [MASK] who is riveted to the screen, glued to the looping footage of the accident. 
+✅ Ground Truth: father
+--------------------------------------------------------------------------------
+🎬 Movie: Dumb and Dumber | 🎭 Character: HARRY
+📝 Original:  Thing that really hurts is I think she was seeing another guy. Never id find out who. 
+🔲 Masked:    thing that really [MASK] is i think she was seeing another guy. never id find out who. 
+✅ Ground Truth: hurts
+--------------------------------------------------------------------------------
+🎬 Movie: St. Elmo's Fire | 🎭 Character: ALEC
+📝 Original:  If Leslie would just marry me, I know I wouldn't do stuff like that -- it would be a legal violation. 
+🔲 Masked:    if leslie would just [MASK] me, i know i wouldn't do stuff like that -- it would be a legal violation. 
+✅ Ground Truth: marry
+--------------------------------------------------------------------------------
+🎬 Movie: Usual Suspects, The | 🎭 Character: BAER
+📝 Original:  Joel, it's Baer. I'm down at L.A. county. The guy they pulled out of the harbor is ARKOSH Kovash... Yes, I'm sure... No, he's all fucked up... What? I can't hear you. (To Arkosh) Shut up, Hugo, I'm on the phone. (Into Phone) Yes... No... Not until I put someone on him. Listen, I need you to send me someone who can speak Hungarian. He's awake and talking like a Thai hooker... How should I know? Get me someone who can talk to him - 
+🔲 Masked:    joel, it's baer. i'm down at l.a. county. the guy they pulled out of the harbor is arkosh kovash... yes, i'm sure... no, he's all [MASK] up... what? i can't hear you. (to arkosh) shut up, hugo, i'm on the phone. (into phone) yes... no... not until i put someone on him. listen, i need you to send me someone who can speak hungarian. he's awake and talking like a thai hooker... how should i know? get me someone who can talk to him - 
+✅ Ground Truth: fucked
+--------------------------------------------------------------------------------
+🎬 Movie: Thirteen Days | 🎭 Character: ADMIRAL ANDERSON
+📝 Original:  We're going to follow the Rules of Engagement.  The Rules of Engagement which the President has approved and signed in his order of October 23rd. 
+🔲 Masked:    we're going to follow the rules of engagement.  the rules of engagement which the [MASK] has approved and signed in his order of october 23rd. 
+✅ Ground Truth: president
+--------------------------------------------------------------------------------
+🎬 Movie: War Horse | 🎭 Character: ROSIE
+📝 Original:  Well it ain't mine, dear. He got that after the fighting at Transvaal. After he'd been hurt, and he'd saved some other lads, and well... I don't know what else, he won't tell me either. But the first day he got home he just... tossed them out. First day he could walk, he threw `em straight in the dustbin, and wouldn't hear a word I said not to. Albert nods, looking at the medal and campaign pennant. She takes the medal back, puts it in the sash, and begins to wrap it again. 
+🔲 Masked:    well it ain't mine, dear. he got that after the [MASK] at transvaal. after he'd been hurt, and he'd saved some other lads, and well... i don't know what else, he won't tell me either. but the first day he got home he just... tossed them out. first day he could walk, he threw `em straight in the dustbin, and wouldn't hear a word i said not to. albert nods, looking at the medal and campaign pennant. she takes the medal back, puts it in the sash, and begins to wrap it again. 
+✅ Ground Truth: fighting
+--------------------------------------------------------------------------------
+🎬 Movie: Six Degrees of Separation | 🎭 Character: OUISA
+📝 Original:  I will help you. But you have to go to the police and go to jail and - 
+🔲 Masked:    i will [MASK] you. but you have to go to the police and go to jail and - 
+✅ Ground Truth: help
+--------------------------------------------------------------------------------
+🎬 Movie: Star Trek II: The Wrath of Khan | 🎭 Character: CHEKOV
+📝 Original:  (pauses; listens) I'm sorry you feel that way, Doctor. Admiral Kirk's orders are confirmed. Please prepare to deliver Genesis to us upon our arrival. Reliant out. 
+🔲 Masked:    (pauses; listens) i'm sorry you feel that way, doctor. [MASK] kirk's orders are confirmed. please prepare to deliver genesis to us upon our arrival. reliant out. 
+✅ Ground Truth: admiral
+--------------------------------------------------------------------------------
+🎬 Movie: Boondock Saints 2: All Saints Day | 🎭 Character: CONCEZIO
+📝 Original:  And don't come back here till I tell you to, you fat fucking waste of space! 
+🔲 Masked:    and don't come back here till i tell you to, you fat [MASK] waste of space! 
+✅ Ground Truth: fucking
+--------------------------------------------------------------------------------
+🎬 Movie: Schindler's List | 🎭 Character: GOETH
+📝 Original:  Enough -- Jesus -- God -- 
+🔲 Masked:    enough -- [MASK] -- god -- 
+✅ Ground Truth: jesus
+--------------------------------------------------------------------------------
+🎬 Movie: Battle of Algiers, The | 🎭 Character: KADER
+📝 Original:  C'mon ... you're exaggerating. The orders were to shoot him in the back. 
+🔲 Masked:    c'mon ... you're exaggerating. the [MASK] were to shoot him in the back. 
+✅ Ground Truth: orders
+--------------------------------------------------------------------------------
+🎬 Movie: Scarface | 🎭 Character: LOPEZ
+📝 Original:  (livid) You what! You made a deal for fucking eighteen million dollars without even checking with me! What are you crazy Montana, are you crazy! 
+🔲 Masked:    (livid) you what! you made a deal for [MASK] eighteen million dollars without even checking with me! what are you crazy montana, are you crazy! 
+✅ Ground Truth: fucking
+--------------------------------------------------------------------------------
+🎬 Movie: She's Out of My League | 🎭 Character: MOLLY
+📝 Original:  But, I just need to feel safe first. 
+🔲 Masked:    but, i just need to feel [MASK] first. 
+✅ Ground Truth: safe
+--------------------------------------------------------------------------------
+🎬 Movie: Amadeus | 🎭 Character: CONSTANZE
+📝 Original:  I love you! I love you! 
+🔲 Masked:    i [MASK] you! i love you! 
+✅ Ground Truth: love
+--------------------------------------------------------------------------------
+🎬 Movie: Gang Related | 🎭 Character: ELLIOT
+📝 Original:  Nobody ever wants to be punished for what they've done. It's just a new concept. But I still think our defense is reasonable. I don't believe, under the condition you were in, that you were responsible for your actions. 
+🔲 Masked:    nobody ever wants to be [MASK] for what they've done. it's just a new concept. but i still think our defense is reasonable. i don't believe, under the condition you were in, that you were responsible for your actions. 
+✅ Ground Truth: punished
+--------------------------------------------------------------------------------
+🎬 Movie: Wolf of Wall Street, The | 🎭 Character: JORDAN
+📝 Original:  Beni-fucking-hana! Why would God be so cruel as to choose a chain of fucking Hibachi Restaurants to bring me down? 
+🔲 Masked:    beni-fucking-hana! why would god be so [MASK] as to choose a chain of fucking hibachi restaurants to bring me down? 
+✅ Ground Truth: cruel
+--------------------------------------------------------------------------------
+🎬 Movie: Kramer vs Kramer | 🎭 Character: JOANNA
+📝 Original:  Because he's my child... Because I love him. I know I left my son, I know that's a terrible thing to do. Believe me, I have to live with that every day of my life. But just because I'm a woman, don't I have a right to the same hopes and dreams as a man? Don't I have a right to a life of my own? Is that so awful? Is my pain any less just because I'm a woman? Are my feelings any cheaper? I left my child � I know there is no excuse for that. But since then, I have gotten help. I have worked hard to become a whole human being. I don't think I should be punished for that. I don't think my son should be punished for that. Billy's only six. He needs me. I'm not saying he doesn't need his father, but he needs me more. I'm his mother. 
+🔲 Masked:    because he's my [MASK]... because i love him. i know i left my son, i know that's a terrible thing to do. believe me, i have to live with that every day of my life. but just because i'm a woman, don't i have a right to the same hopes and dreams as a man? don't i have a right to a life of my own? is that so awful? is my pain any less just because i'm a woman? are my feelings any cheaper? i left my child � i know there is no excuse for that. but since then, i have gotten help. i have worked hard to become a whole human being. i don't think i should be punished for that. i don't think my son should be punished for that. billy's only six. he needs me. i'm not saying he doesn't need his father, but he needs me more. i'm his mother. 
+✅ Ground Truth: child
+--------------------------------------------------------------------------------
+🎬 Movie: Aliens | 🎭 Character: GORMAN
+📝 Original:  (to Burke) Looks like you company can write off its share of this colony. 
+🔲 Masked:    (to burke) looks like you company can write off its [MASK] of this colony. 
+✅ Ground Truth: share
+--------------------------------------------------------------------------------
+🎬 Movie: Pretty Woman (final script) | 🎭 Character: EDWARD
+📝 Original:  You know what I used to love when I was a kid, Phil ? 
+🔲 Masked:    you know what i used to [MASK] when i was a kid, phil ? 
+✅ Ground Truth: love
+--------------------------------------------------------------------------------
+🎬 Movie: Hesher | 🎭 Character: HESHER
+📝 Original:  (MOUTH FULL) Not really. Paul came in and said some dumb shit which TJ got angry about and so TJ smashed his plate and then Paul smashed his plate too but I got a feeling he smashed his one cuz he couldn't actually think of anything to say cuz he kinda knew TJ had a point and so now he feels bad about it and so he's gone somewhere. (takes another mouthful) I don't know where. 
+🔲 Masked:    (mouth full) not really. paul came in and said some dumb [MASK] which tj got angry about and so tj smashed his plate and then paul smashed his plate too but i got a feeling he smashed his one cuz he couldn't actually think of anything to say cuz he kinda knew tj had a point and so now he feels bad about it and so he's gone somewhere. (takes another mouthful) i don't know where. 
+✅ Ground Truth: shit
+--------------------------------------------------------------------------------
+🎬 Movie: Tin Men | 🎭 Character: BB
+📝 Original:  If getting Nora is part of losing, Thank God I didn't win. 
+🔲 Masked:    if getting nora is part of losing, thank [MASK] i didn't win. 
+✅ Ground Truth: god
+--------------------------------------------------------------------------------
+🎬 Movie: Body of Evidence | 🎭 Character: ROSTON
+📝 Original:  I couldn't help myself.  You get lost inside a women like her.  It was like a drug.  It was the best sex I ever had. 
+🔲 Masked:    i couldn't [MASK] myself.  you get lost inside a women like her.  it was like a drug.  it was the best sex i ever had. 
+✅ Ground Truth: help
+--------------------------------------------------------------------------------
+🎬 Movie: Bamboozled | 🎭 Character: DELACROIX
+📝 Original:  I understand.  But again, in all honesty I was not informed. 
+🔲 Masked:    i understand.  but again, in all [MASK] i was not informed. 
+✅ Ground Truth: honesty
+--------------------------------------------------------------------------------
+🎬 Movie: Friday the 13th Part VIII: Jason Takes Manhattan | 🎭 Character: MCCULLOCH
+📝 Original:  Can you shut that damn thing off?? 
+🔲 Masked:    can you shut that [MASK] thing off?? 
+✅ Ground Truth: damn
+--------------------------------------------------------------------------------
+🎬 Movie: Gods and Monsters | 🎭 Character: CLAY
+📝 Original:  Proud?  Any jerk with a gun can kill someone. 
+🔲 Masked:    proud?  any jerk with a gun can [MASK] someone. 
+✅ Ground Truth: kill
+--------------------------------------------------------------------------------
+🎬 Movie: Twilight: New Moon | 🎭 Character: ARO
+📝 Original:  I would love to see if you are an exception to my gifts, as well. 
+🔲 Masked:    i would [MASK] to see if you are an exception to my gifts, as well. 
+✅ Ground Truth: love
+--------------------------------------------------------------------------------
+🎬 Movie: Jane Eyre | 🎭 Character: JANE
+📝 Original:  (SMILING) Not a whit, sir. You are not to be trusted at all. 
+🔲 Masked:    (smiling) not a whit, sir. you are not to be [MASK] at all. 
+✅ Ground Truth: trusted
+--------------------------------------------------------------------------------
+🎬 Movie: Chinatown | 🎭 Character: GITTES
+📝 Original:  Mrs. Mulwray, do you love your husband? 
+🔲 Masked:    mrs. mulwray, do you [MASK] your husband? 
+✅ Ground Truth: love
+--------------------------------------------------------------------------------
+🎬 Movie: Crazy, Stupid, Love | 🎭 Character: LIZ
+📝 Original:  Yeah, well... Jesus. Really? (with a shrug) Okay. Not my life, I love you, call me if you need anything. 
+🔲 Masked:    yeah, well... jesus. really? (with a shrug) okay. not my life, i [MASK] you, call me if you need anything. 
+✅ Ground Truth: love
+--------------------------------------------------------------------------------
+🎬 Movie: Bodyguard | 🎭 Character: SPECTOR
+📝 Original:  ... and now you're fucking with her head. 
+🔲 Masked:    ... and now you're [MASK] with her head. 
+✅ Ground Truth: fucking
+--------------------------------------------------------------------------------
+🎬 Movie: Witness | 🎭 Character: RACHEL
+📝 Original:  You said we would be safe in Philadelphia. 
+🔲 Masked:    you said we would be [MASK] in philadelphia. 
+✅ Ground Truth: safe
+--------------------------------------------------------------------------------
+🎬 Movie: Ninotchka | 🎭 Character: BULJANOFF
+📝 Original:  Well, if your mother turns against you, you have to look for someone to adopt you. 
+🔲 Masked:    well, if your [MASK] turns against you, you have to look for someone to adopt you. 
+✅ Ground Truth: mother
+--------------------------------------------------------------------------------
+🎬 Movie: High Fidelity | 🎭 Character: LAURA
+📝 Original:  Yeah, and he said it's a good way to break out a record.  Especially for what he said, and I quote, "would be a highly anticipated event, locally." He helped me put out a press release. 
+🔲 Masked:    yeah, and he said it's a good way to break out a record.  especially for what he said, and i quote, "would be a highly anticipated event, locally." he [MASK] me put out a press release. 
+✅ Ground Truth: helped
+--------------------------------------------------------------------------------
+🎬 Movie: Nashville | 🎭 Character: LINNEA
+📝 Original:  Or course. You should come over to the house. The boys would love to meet you. 
+🔲 Masked:    or course. you should come over to the house. the boys would [MASK] to meet you. 
+✅ Ground Truth: love
+--------------------------------------------------------------------------------
+🎬 Movie: Meet Joe Black | 🎭 Character: PARRISH
+📝 Original:  You're not taking Susan anywhere. And what the hell does that mean anyway? 
+🔲 Masked:    you're not taking susan anywhere. and what the [MASK] does that mean anyway? 
+✅ Ground Truth: hell
+--------------------------------------------------------------------------------
+🎬 Movie: Family Man, The | 🎭 Character: KATE
+📝 Original:  Those shoes were twenty five dollars.  C�mon, take it off.  We�ll go to the food court and get one of those funnel cakes you like. 
+🔲 Masked:    those shoes were twenty five dollars.  c�mon, take it off.  we�ll go to the [MASK] court and get one of those funnel cakes you like. 
+✅ Ground Truth: food
+--------------------------------------------------------------------------------
+🎬 Movie: Cast Away | 🎭 Character: GOODCHUCK
+📝 Original:  (as the waiter) For dessert, we have pecan pie a la mode, we have a double chocolate cake with creme anglaise, we have a nice pear torte, fresh key lime pie, or perhaps if you care to wait a few minutes, a grand marnier souffle? 
+🔲 Masked:    (as the waiter) for dessert, we have pecan pie a la mode, we have a double chocolate cake with creme anglaise, we have a nice pear torte, fresh key lime pie, or perhaps if you [MASK] to wait a few minutes, a grand marnier souffle? 
+✅ Ground Truth: care
+--------------------------------------------------------------------------------
+🎬 Movie: Election | 🎭 Character: TRACY
+📝 Original:  YOU probably think the worst - that Mr. Novotny was just taking advantage of one of his students, but it wasn't like that at all. Our relationship was based on mutual respect and admiration. I mean, during my sophomore year in geometry it was strictly professional between us -- I mean, nothing. 
+🔲 Masked:    you probably think the worst - that mr. novotny was just taking advantage of one of his students, but it wasn't like that at all. our relationship was based on mutual [MASK] and admiration. i mean, during my sophomore year in geometry it was strictly professional between us -- i mean, nothing. 
+✅ Ground Truth: respect
+--------------------------------------------------------------------------------
+🎬 Movie: Magnolia | 🎭 Character: ROSE
+📝 Original:  I love you. 
+🔲 Masked:    i [MASK] you. 
+✅ Ground Truth: love
+--------------------------------------------------------------------------------
+🎬 Movie: Friday the 13th Part VIII: Jason Takes Manhattan | 🎭 Character: SEAN
+📝 Original:  The Captain and Chief Engineer... they've been...they're dead. 
+🔲 Masked:    the [MASK] and chief engineer... they've been...they're dead. 
+✅ Ground Truth: captain
+--------------------------------------------------------------------------------
+🎬 Movie: Twilight | 🎭 Character: JAMES
+📝 Original:  The old ballet studio around the corner. And I'll know if you bring anyone along. Poor mommy would pay the price for that mistake. 
+🔲 Masked:    the old ballet studio around the corner. and i'll know if you bring anyone along. poor [MASK] would pay the price for that mistake. 
+✅ Ground Truth: mommy
+--------------------------------------------------------------------------------
+🎬 Movie: Grifters, The | 🎭 Character: ROY
+📝 Original:  I can take care of my own bills, Lilly. 
+🔲 Masked:    i can take [MASK] of my own bills, lilly. 
+✅ Ground Truth: care
+--------------------------------------------------------------------------------
+🎬 Movie: Birdman | 🎭 Character: RIGGAN
+📝 Original:  technique. Just crappy opinions backed up by crappy comparisons. You're incapable of writing more than a couple of paragraphs, and you risk nothing of yourself. (He tears out the page and tosses the notebook.) Well, I'm an actor and this play has cost me everything. So you can take your cowardly, malicious, shittily written reviews and shove them up your... (Showing her the wrinkled page.) ...wrinkly, tight ass. 
+🔲 Masked:    technique. just [MASK] opinions backed up by crappy comparisons. you're incapable of writing more than a couple of paragraphs, and you risk nothing of yourself. (he tears out the page and tosses the notebook.) well, i'm an actor and this play has cost me everything. so you can take your cowardly, malicious, shittily written reviews and shove them up your... (showing her the wrinkled page.) ...wrinkly, tight ass. 
+✅ Ground Truth: crappy
+--------------------------------------------------------------------------------
+🎬 Movie: Living in Oblivion | 🎭 Character: NICK
+📝 Original:  Hey, Cora. Why don't you go learn your lines! Hey Scriptgirl, are you finally going to pay attention here?! Hey, focus puller, you want to make a movie or get stoned?! Huh, I got some great fuckin' Thai Stick here! Hey Wolf, you pretentious, beret- wearing motherfucker! I saw your reel, man; it sucked! Who the hell would hire you anyway! Hey Wanda, next time can you wear a shirt that's a little more distracting to my actors! (to the Gaffer) Hey Bob! Hi Bob! Can you please make a little more noise on the dolly you creaky motherfucker! (to Cybil) What is your name!? What do you fucking do around here?! (to the Soundman) Hey Speedo, what's the matter? Can't even find a teeny fucking beep?! 
+🔲 Masked:    hey, cora. why don't you go learn your lines! hey scriptgirl, are you finally going to pay attention here?! hey, focus puller, you want to make a movie or get stoned?! huh, i got some great fuckin' thai stick here! hey wolf, you pretentious, beret- wearing motherfucker! i saw your reel, man; it sucked! who the hell would hire you anyway! hey wanda, next time can you wear a shirt that's a little more distracting to my actors! (to the gaffer) hey bob! hi bob! can you please make a little more noise on the dolly you creaky motherfucker! (to cybil) what is your name!? what do you [MASK] do around here?! (to the soundman) hey speedo, what's the matter? can't even find a teeny fucking beep?! 
+✅ Ground Truth: fucking
+--------------------------------------------------------------------------------
+🎬 Movie: Austin Powers - International Man of Mystery | 🎭 Character: VANESSA
+📝 Original:  Well, God knows he tried, but I've been rather firm with him, Mummy. You didn't tell me he was so obsessed with sex.  It's bizarre. 
+🔲 Masked:    well, [MASK] knows he tried, but i've been rather firm with him, mummy. you didn't tell me he was so obsessed with sex.  it's bizarre. 
+✅ Ground Truth: god
+--------------------------------------------------------------------------------
+🎬 Movie: Bounty Hunter, The | 🎭 Character: BOBBY
+📝 Original:  What the fuck are you doing? I thought I told you to lie low. 
+🔲 Masked:    what the [MASK] are you doing? i thought i told you to lie low. 
+✅ Ground Truth: fuck
+--------------------------------------------------------------------------------
+🎬 Movie: Up | 🎭 Character: RUSSELL
+📝 Original:  See these? These are my Wilderness Explorer badges. You may notice one is missing. It's my Assisting the Elderly badge. If I get it I will become a Senior Wilderness Explorer! Russell makes the Explorer Sign: his thumbs form a "W", his fingers the "wings" of a bird, then the "claws" of a bear. 
+🔲 Masked:    see these? these are my wilderness explorer badges. you may notice one is missing. it's my assisting the [MASK] badge. if i get it i will become a senior wilderness explorer! russell makes the explorer sign: his thumbs form a "w", his fingers the "wings" of a bird, then the "claws" of a bear. 
+✅ Ground Truth: elderly
+--------------------------------------------------------------------------------
+🎬 Movie: Deep Rising | 🎭 Character: FINNEGAN
+📝 Original:  You don't take orders very well, do you? 
+🔲 Masked:    you don't take [MASK] very well, do you? 
+✅ Ground Truth: orders
+--------------------------------------------------------------------------------
+🎬 Movie: Speed Racer | 🎭 Character: BEN BURNS
+📝 Original:  I'd like to work clean up on that crash. They chuckle. 
+🔲 Masked:    i'd like to work [MASK] up on that crash. they chuckle. 
+✅ Ground Truth: clean
+--------------------------------------------------------------------------------
+🎬 Movie: Three Kings | 🎭 Character: TROY
+📝 Original:  That I love you. 
+🔲 Masked:    that i [MASK] you. 
+✅ Ground Truth: love
+--------------------------------------------------------------------------------
+🎬 Movie: Spare Me | 🎭 Character: BREEZE
+📝 Original:  Only problem is, you didn't put his lights out, you just got him mad. Then he took it out on poor Faz, God rest his soul. Theo patches out. 
+🔲 Masked:    only problem is, you didn't put his lights out, you just got him mad. then he took it out on poor faz, [MASK] rest his soul. theo patches out. 
+✅ Ground Truth: god
+--------------------------------------------------------------------------------
+🎬 Movie: Informant, The | 🎭 Character: WHITACRE
+📝 Original:  Well last night he calls me at home just after 8, and Mick, he knew everything. He says to me, `You remember the total nightmare you had during May, June and July?' And before I can ask him what he means he says, `Those months when ADM was losing about seven million dollars a month in the lysine business?' Whitacre stares at Andreas in shock-- no one outside the company should know that. Andreas is still stone faced. 
+🔲 Masked:    well last night he calls me at home just after 8, and mick, he knew everything. he says to me, `you remember the total nightmare you had during may, june and july?' and before i can ask him what he means he says, `those months when adm was losing about seven million dollars a month in the lysine business?' whitacre stares at andreas in shock-- no one outside the [MASK] should know that. andreas is still stone faced. 
+✅ Ground Truth: company
+--------------------------------------------------------------------------------
+🎬 Movie: Patriot, The | 🎭 Character: MARION
+📝 Original:  We do not have to go to war to gain independence. 
+🔲 Masked:    we do not have to go to [MASK] to gain independence. 
+✅ Ground Truth: war
+--------------------------------------------------------------------------------
+🎬 Movie: High Fidelity | 🎭 Character: LAURA
+📝 Original:  I am not living with him.  I've just been staying with him for a few days until I work out what I'm doing. Look, this has nothing to do with anyone else.  You know that, don't you?  I left because we weren't exactly getting along, and we weren't talking about it.  And I suddenly realized that I like my job, and I like what my life is could be turning into, and that I'm getting to a point where I want to get my shit together and I can't really see that ever happening with you, and yeah, yeah, I sort of get interested in someone else, and that went further than it should have, so it seemed like a good time to go.  But I have no idea what will happen with Ian in the long run.  Probably nothing. 
+🔲 Masked:    i am not living with him.  i've just been staying with him for a few days until i work out what i'm doing. look, this has nothing to do with anyone else.  you know that, don't you?  i left because we weren't exactly getting along, and we weren't talking about it.  and i suddenly realized that i like my job, and i like what my life is could be turning into, and that i'm getting to a point where i want to get my [MASK] together and i can't really see that ever happening with you, and yeah, yeah, i sort of get interested in someone else, and that went further than it should have, so it seemed like a good time to go.  but i have no idea what will happen with ian in the long run.  probably nothing. 
+✅ Ground Truth: shit
+--------------------------------------------------------------------------------
+🎬 Movie: Bamboozled | 🎭 Character: DELACROIX
+📝 Original:  Tomorrow it will be all about cruelty to animals or some sex scandal.  Besides, there is no such thing as bad publicity. 
+🔲 Masked:    tomorrow it will be all about [MASK] to animals or some sex scandal.  besides, there is no such thing as bad publicity. 
+✅ Ground Truth: cruelty
+--------------------------------------------------------------------------------
+🎬 Movie: Wonder Woman | 🎭 Character: STEVE
+📝 Original:  ... The War to End All Wars.   Four years, twenty-seven nations, twenty-five million dead -- soldiers... and civilians... 
+🔲 Masked:    ... the [MASK] to end all wars.   four years, twenty-seven nations, twenty-five million dead -- soldiers... and civilians... 
+✅ Ground Truth: war
+--------------------------------------------------------------------------------
+🎬 Movie: Independence Day | 🎭 Character: GENERAL GREY
+📝 Original:  Let's get on the wire.  Tell every squadron around the world how to shoot those fuckers down. 
+🔲 Masked:    let's get on the wire.  tell every squadron around the world how to shoot those [MASK] down. 
+✅ Ground Truth: fuckers
+--------------------------------------------------------------------------------
+🎬 Movie: 8MM | 🎭 Character: WELLES
+📝 Original:  Please, believe me.  This is probably a stag film.  Simulated rape.  Hard to stomach, and it might seem real, but there are ways of making it look realistic... fake blood and special effects... 
+🔲 Masked:    please, believe me.  this is probably a stag film.  simulated rape.  hard to stomach, and it might seem real, but there are ways of making it look realistic... fake [MASK] and special effects... 
+✅ Ground Truth: blood
+--------------------------------------------------------------------------------
