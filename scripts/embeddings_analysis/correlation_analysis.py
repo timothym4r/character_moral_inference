@@ -325,7 +325,6 @@ def run_analysis(embeddings_path, recompute_embeddings = False, pooling_method =
     
     # Embeddings data here contains sentence-level embeddings for each character in each movie.
     # Before proceeding to analysis, we need to transform them into character-level emebddings. 
-    # TODO: Make sure we take average of the BERT-embeddings before pass it to the AE
     method_1_result = method_1(embeddings_data, ratings_data)
     method_2_result = method_2(embeddings_data, ratings_data)
 

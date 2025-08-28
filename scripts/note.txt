@@ -1,0 +1,13 @@
+
+
+Functionalities to implement immediately
+1. Make sure we copy the data in the project directory into the temporary directory, untag them, compute the result, copy the result to the project directory and tar them if necessary.
+2. Decide whether the subfolder named {base_model_name} is created by the bash script or the python scripts.
+
+
+
+Funtionalities to implement, but not top priority:
+1. Moral only past sentences data loading in "Moral classification training script"
+    Problem : we need to somehow add a parameter that tells us whether to add "moral_only" string to the data path
+2. Incorporate weights and biases
+

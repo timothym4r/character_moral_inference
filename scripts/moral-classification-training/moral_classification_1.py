@@ -506,7 +506,7 @@ def main(args):
 
     # We can print the arguments to check if they are set correctly
     print(args)
-
+            
     input_dir = args.input_dir
     model_name = args.model_name
     # log_path = args.log_path
@@ -533,7 +533,25 @@ def main(args):
     injection_pooling_method = args.injection_pooling_method
     injection_method = args.injection_method
 
-    input_dir = os.path.join(input_dir, model_name)
+    model_H_path = os.path.join(args.output_dir, "model_H.pth")
+    classifier_path = os.path.join(args.output_dir, "classifier.pth")
+    log_path = os.path.join(args.output_dir, "logs", f"{args.model_name}_moral_classification_log.csv")
+
+    if args.retrain and os.path.exists(model_H_path) and os.path.exists(classifier_path) and os.path.exists(log_path):
+        print(f"Output directory {args.output_dir} already exists. Proceeding to retrain and overwrite existing models...")
+    else:
+        if os.path.exists(model_H_path) and os.path.exists(classifier_path) and os.path.exists(log_path):
+            print("All required files (model_H, classifier, and log) are present. Skipping retrain as requested.")
+            return
+        else:
+            if not args.retrain:
+                print("Required files (model_H, classifier, or log) are missing. Forcing retrain...")
+
+    # We document all the arguments used for training in a text file
+    arg_log_txt_file = os.path.join(args.output_dir, f"{model_name}_moral_classification_args.txt")
+    with open(arg_log_txt_file, "w") as f:
+        for arg, value in vars(args).items():
+            f.write(f"{arg}: {value}\n")
 
     with open(os.path.join(input_dir, f"train_data_{injection_pooling_method}.json"), "r") as f:
         train_data = json.load(f)
@@ -623,6 +641,7 @@ if __name__ == "__main__":
     parser.add_argument("--classification_pooling_method", type=str, default="cls", choices=["cls", "mean"], help="Pooling method for classification")
     parser.add_argument("--injection_pooling_method", type=str, default="mean", choices=["mean", "max"], help="Pooling method for injection")
     parser.add_argument("--injection_method", type=str, default="sum", choices=["sum", "concat"], help="Method to inject embeddings")
+    parser.add_argument("--retrain", action="store_true", help="Regenerate embeddings even if they already exist.")
 
     args = parser.parse_args()
     main(args)

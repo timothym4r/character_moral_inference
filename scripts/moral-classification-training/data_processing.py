@@ -134,11 +134,16 @@ def data_preprocess(
                 gc.collect()
 
     os.makedirs(output_dir, exist_ok=True)
-
-    with open(os.path.join(output_dir, f"train_data_{pooling_method}.json"), "w") as f:
-        json.dump(train_data, f)
-    with open(os.path.join(output_dir, f"test_data_{pooling_method}.json"), "w") as f:
-        json.dump(test_data, f)
+    if moral_only_past_sentences:
+        with open(os.path.join(output_dir, f"train_data_moral_only_{pooling_method}.json"), "w") as f:
+            json.dump(train_data, f)
+        with open(os.path.join(output_dir, f"test_data_moral_only_{pooling_method}.json"), "w") as f:
+            json.dump(test_data, f)
+    else:
+        with open(os.path.join(output_dir, f"train_data_{pooling_method}.json"), "w") as f:
+            json.dump(train_data, f)
+        with open(os.path.join(output_dir, f"test_data_{pooling_method}.json"), "w") as f:
+            json.dump(test_data, f)
 
     print("Saved train/test datasets using model:", model_name)
 
@@ -180,7 +185,10 @@ def main(args):
         ```
     """
     if args.reprocess or not os.path.exists(os.path.join(args.output_dir, f"train_data_{args.pooling_method}.json")):
-        print(f"Data files not found in {args.output_dir}. Running data preprocessing...")
+        if not args.reprocess:
+            print(f"Data files not found in {args.output_dir}. Running data preprocessing...")
+        else:
+            print(f"--reprocess flag set. Regenerating data in {args.output_dir}...")
 
         data_preprocess(
             model_name=args.model_name,
