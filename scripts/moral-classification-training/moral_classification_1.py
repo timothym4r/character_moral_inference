@@ -46,7 +46,7 @@ def custom_collate_fn(batch):
 
     return batch_collated
 
-def update_char_vec_embeddings(dataset, tokenizer, encoder, device, batch_size=64):
+def update_char_vec_embeddings(dataset, tokenizer, encoder, device, batch_size=64, pooling_method = 'mean'):
     """
     Update 'avg_embedding' in-place for each example in the dataset based on current encoder state.
 
@@ -55,10 +55,10 @@ def update_char_vec_embeddings(dataset, tokenizer, encoder, device, batch_size=6
     Steps:
     - Generate the sentence embeddings for all the characters
     - Index them properly, take the average, then assign it to corresponding data point in original dataset
-    
+
     Some variations:
     - Since there will be data points splitting and a character's data points might be separated between test and training dataset,
-      we need to make sure we assign them properly and by order. 
+      we need to make sure we assign them properly and by order.
 
     """
     encoder.eval()
@@ -101,25 +101,28 @@ def update_char_vec_embeddings(dataset, tokenizer, encoder, device, batch_size=6
                     max_length=256
                 ).to(device)
 
-                ### TODO: Make sure the operation is correct and no logic/valueError
                 outputs = encoder(**encoded)
                 last_hidden = outputs.last_hidden_state
-                attn_mask = encoded["attention_mask"].unsqueeze(-1)  # shape: (batch_size, seq_len, 1)
-                # .clamp(min = 1e-9) prevents division by 0
-                pooled = (last_hidden * attn_mask).sum(1) / attn_mask.sum(1).clamp(min=1e-9)
+                if pooling_method == 'mean':
+                    attn_mask = encoded["attention_mask"].unsqueeze(-1)  # shape: (batch_size, seq_len, 1)
+                    # .clamp(min = 1e-9) prevents division by 0
+                    pooled = (last_hidden * attn_mask).sum(1) / attn_mask.sum(1).clamp(min=1e-9)
+                elif pooling_method == 'cls':
+                    pooled = last_hidden[:, 0, :]
+
                 all_embeddings.append(pooled.cpu())
 
-            # all_embeddings contains all sentence embeddings that we need 
+            # all_embeddings contains all sentence embeddings that we need
             # Start the indexing logic + averaging
 
             flat_embeds = torch.cat(all_embeddings, dim=0)  # Shape: (num_sentences, 768)
-            
+
             for k in range(num_past_sentences-1):   # We use num_past_sentences-1 because there needs to be at least 1 past sentence for each data point
 
                 # If we reach the left edge
                 # This is the case where a character data points are splited by train-test split
-                if i - k < 0:  
-                    break    
+                if i - k < 0:
+                    break
 
                 cur_past_sentences = flat_embeds[:len(flat_embeds) - k]
                 full_embed = cur_past_sentences.mean(dim=0)
@@ -129,6 +132,7 @@ def update_char_vec_embeddings(dataset, tokenizer, encoder, device, batch_size=6
             # We update the first_index
             first_index = i+1
             last_index = first_index
+
 
 def compute_orthogonality_loss(z, strategy="off_diag"):
     """
@@ -176,7 +180,7 @@ def train_moral_classifier(
     model_H = Autoencoder(768, latent_dim, dropout=dropout_rate)
     model_H.to(device)
 
-    classifier = MoralClassifier(base_model).to(device)
+    classifier = MoralClassifier(base_model, inject_operation=injection_method, inference_pooling_method=classification_pooling_method).to(device)
 
     # Character embedding setup
     if use_one_hot:
@@ -336,8 +340,8 @@ def train_moral_classifier(
 
         if train_n_last_layers > 0:
             print(f"\n[Epoch {epoch+1}] Recomputing char_vec embeddings...")
-            update_char_vec_embeddings(train_dataset, tokenizer, classifier.bert, device)
-            update_char_vec_embeddings(val_dataset, tokenizer, classifier.bert, device)
+            update_char_vec_embeddings(train_dataset, tokenizer, classifier.bert, device, pooling_method=injection_pooling_method)
+            update_char_vec_embeddings(val_dataset, tokenizer, classifier.bert, device, pooling_method=injection_pooling_method)
 
     # Restore best model
     if best_state:
@@ -381,7 +385,7 @@ def log_metrics_to_csv(log_path, model_name, epoch, train_losses, train_metrics,
 
 
 def evaluate_classifier(model_H, classifier, dataset, tokenizer, use_one_hot=False, character_embedding=None, batch_size = 32, inject_embedding=True,
-                        classification_pooling_method = "cls", injection_pooling_method = "mean", injection_method = "sum"):
+                        classification_pooling_method = "cls", injection_pooling_method = "mean"):
 
     # We do not need to use of the classification_pooling_method, injection_method, and injection_pooling_method:
     # classification_pooling_method depends on the base model and is handled inside the classifier

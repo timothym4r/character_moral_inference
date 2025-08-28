@@ -27,7 +27,7 @@ class Autoencoder(nn.Module):
 
 
 class MoralClassifier(nn.Module):
-    def __init__(self, base_model, latent_dim=768, inject_operation = "sum", ):
+    def __init__(self, base_model, latent_dim=768, inject_operation = "sum", inference_pooling_method = "cls"):
         super().__init__()
         self.bert = base_model
         self.dropout = nn.Dropout(0.1)
