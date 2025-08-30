@@ -5,7 +5,7 @@ import argparse
 import torch
 import json
 from tqdm import tqdm
-from utils import get_strong_correlations, plot_r2_scores, find_files_with_key_words
+from embeddings_analysis.utils import get_strong_correlations, plot_r2_scores, find_files_with_key_words
 
 from pathlib import Path
 import pandas as pd

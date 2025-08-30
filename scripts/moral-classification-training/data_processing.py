@@ -15,8 +15,11 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 import re
 from torch.nn.functional import normalize
 
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import gc, os, json, torch
+import argparse
+
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
 
 def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, pooling_method = "mean"):
     all_embeddings = []
@@ -204,7 +207,6 @@ def main(args):
             f"Use --reprocess to force regeneration.")
 
 if __name__ == "__main__":
-    import argparse
 
     parser = argparse.ArgumentParser(description="Preprocess data for moral relevance classification")
     parser.add_argument("--model_name", type=str, required=True, help="Hugging Face model name")
