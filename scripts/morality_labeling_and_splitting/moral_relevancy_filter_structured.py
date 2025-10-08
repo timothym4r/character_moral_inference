@@ -9,7 +9,7 @@ from collections import defaultdict
 
 openai.api_key = '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'
 
-threshold_sent_count = 50  # Minimum sentences per character to process
+threshold_sent_count = 100  # Minimum sentences per character to process
 
 system_prompt = """You are a precise text classifier. Your task is to decide whether a sentence is morally relevant or morally irrelevant.
 A sentence is morally relevant if it explicitly or clearly implies a judgment about fairness, justice, duty, honesty, loyalty, harm, help, kindness, cruelty, purity, sin, morality, betrayal, promises, or similar concepts — even if expressed informally.

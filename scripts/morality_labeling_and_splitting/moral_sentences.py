@@ -16,7 +16,7 @@ import re
 # source_file_path = "../data/dialogue.json"
 source_file_path = "../data/new_dialogue.json"
 
-# Read the JSON file of chatracter dialogues
+# Read the JSON file of character dialogues
 with open(source_file_path, "r") as file:
     raw_dialogue = json.load(file)
 

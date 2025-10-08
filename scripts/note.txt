@@ -1,8 +1,7 @@
 
 
 Functionalities to implement immediately
-1. Make sure we copy the data in the project directory into the temporary directory, untag them, compute the result, copy the result to the project directory and tar them if necessary.
-2. Decide whether the subfolder named {base_model_name} is created by the bash script or the python scripts.
+1. Prepare the sentence dataset with new labels
 
 
 
@@ -11,3 +10,110 @@ Funtionalities to implement, but not top priority:
     Problem : we need to somehow add a parameter that tells us whether to add "moral_only" string to the data path
 2. Incorporate weights and biases
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+JUST IGNORE THE BELOW SECTIONS:
+
+
+
+# RUN_DIR subdirectories:
+# - run: storing the code inside $PROJECT/project-code
+# - output: storing output we will later TAR and copy to $PROJECT/data/output
+# - input: storing the dataset we copy from $PROJECT/data/input
+# *note: the structure of both output and input subfolders above are similar to MORAL_CLS_FOLDER below
+
+# MORAL_CLS_FOLDER (data/morality-classification structures):
+# --> output --> trials_{trial_id} --> base_model_type --> all result files (embeddings, BERT-based model, AE, graphs)
+#                                                      --> embeddings.json
+#                                                      --> latent_embeddings.json
+#                                                      --> embeddings_past_only.json
+#                                                      --> latent_embeddings_past_only.json
+# --> input  --> sentence_data.json
+#            --> train_test  --> base_model_type --> train_data_{pooling_method}.json
+#                                                --> test_data_{pooling_method}.json
+#                                                --> train_data_past_only_{pooling_method}.json
+#                                                --> test_data_past_only_{pooling_method}.json
+
+# *Note: the input is tarred per base_model_type while the output is by trial id
+
+# # If sentence embeddings data or train-test data exist, untar them and copy
+# if [ "$MORAL_ONLY_PAST_SENTENCES" = "true" ]; then
+#     SENTENCE_EMBEDDINGS_PATH=$MORAL_CLS_FOLDER/output/$BASE_MODEL_TYPE/embeddings_moral_only.pkl
+#     SENTENCE_EMBEDDINGS_DEST=$SLURM_TMPDIR/output/$BASE_MODEL_TYPE/embeddings_moral_only.pkl
+# else
+#     SENTENCE_EMBEDDINGS_PATH=$MORAL_CLS_FOLDER/output/$BASE_MODEL_TYPE/embeddings.pkl
+#     SENTENCE_EMBEDDINGS_DEST=$SLURM_TMPDIR/output/$BASE_MODEL_TYPE/embeddings.pkl
+# fi
+
+# if [ "$MORAL_ONLY_PAST_SENTENCES" = "true" ]; then
+#     LATENT_EMBEDDINGS_PATH=$MORAL_CLS_FOLDER/output/$BASE_MODEL_TYPE/latent_embeddings_moral_only.pkl
+#     LATENT_EMBEDDINGS_DEST=$SLURM_TMPDIR/output/$BASE_MODEL_TYPE/latent_embeddings_moral_only.pkl
+# else
+#     LATENT_EMBEDDINGS_PATH=$MORAL_CLS_FOLDER/output/$BASE_MODEL_TYPE/latent_embeddings.pkl
+#     LATENT_EMBEDDINGS_DEST=$SLURM_TMPDIR/output/$BASE_MODEL_TYPE/latent_embeddings.pkl
+# fi
+
+# # If sentence embeddings/ latent embeddings exist, copy them to destinations
+# # --- sentence embeddings ---
+# if [ -f "$SENTENCE_EMBEDDINGS_PATH" ]; then
+#     echo "Found $SENTENCE_EMBEDDINGS_PATH, copying to $SENTENCE_EMBEDDINGS_DEST"
+#     mkdir -p "$(dirname "$SENTENCE_EMBEDDINGS_DEST")"
+#     cp "$SENTENCE_EMBEDDINGS_PATH" "$SENTENCE_EMBEDDINGS_DEST"
+# else
+#     echo "Sentence embeddings not found at $SENTENCE_EMBEDDINGS_PATH"
+# fi
+
+# # --- latent embeddings ---
+# if [ -f "$LATENT_EMBEDDINGS_PATH" ]; then
+#     echo "Found $LATENT_EMBEDDINGS_PATH, copying to $LATENT_EMBEDDINGS_DEST"
+#     mkdir -p "$(dirname "$LATENT_EMBEDDINGS_DEST")"
+#     cp "$LATENT_EMBEDDINGS_PATH" "$LATENT_EMBEDDINGS_DEST"
+# else
+#     echo "Latent embeddings not found at $LATENT_EMBEDDINGS_PATH"
+# fi
+
+# # --- train/test data paths ---
+# if [ "$MORAL_ONLY_PAST_SENTENCES" = "true" ]; then
+#     TRAIN_DATA_PATH=$MORAL_CLS_FOLDER/output/$BASE_MODEL_TYPE/train_data_moral_only_$INJECTION_POOLING_TYPE.json
+#     TRAIN_DATA_DEST=$SLURM_TMPDIR/output/$BASE_MODEL_TYPE/train_data_moral_only_$INJECTION_POOLING_TYPE.json
+
+#     TEST_DATA_PATH=$MORAL_CLS_FOLDER/output/$BASE_MODEL_TYPE/test_data_moral_only_$INJECTION_POOLING_TYPE.json
+#     TEST_DATA_DEST=$SLURM_TMPDIR/output/$BASE_MODEL_TYPE/test_moral_only_$INJECTION_POOLING_TYPE.json
+# else
+#     TRAIN_DATA_PATH=$MORAL_CLS_FOLDER/output/$BASE_MODEL_TYPE/trai_data_$INJECTION_POOLING_TYPE.json
+#     TRAIN_DATA_DEST=$SLURM_TMPDIR/output/$BASE_MODEL_TYPE/train_data_$INJECTION_POOLING_TYPE.json
+
+#     TEST_DATA_PATH=$MORAL_CLS_FOLDER/output/$BASE_MODEL_TYPE/test_data_$INJECTION_POOLING_TYPE.json
+#     TEST_DATA_DEST=$SLURM_TMPDIR/output/$BASE_MODEL_TYPE/test_data_$INJECTION_POOLING_TYPE.json
+# fi
+
+# # If train and test data exist, copy them to destinations
+# # --- train data ---
+# if [ -f "$TRAIN_DATA_PATH" ]; then
+#     echo "Found $TRAIN_DATA_PATH, copying to $TRAIN_DATA_DEST"
+#     mkdir -p "$(dirname "$TRAIN_DATA_DEST")"
+#     cp "$TRAIN_DATA_PATH" "$TRAIN_DATA_DEST"
+# else
+#     echo "Train data not found at $TRAIN_DATA_PATH"
+# fi
+
+# # --- test data ---
+# if [ -f "$TEST_DATA_PATH" ]; then
+#     echo "Found $TEST_DATA_PATH, copying to $TEST_DATA_DEST"
+#     mkdir -p "$(dirname "$TEST_DATA_DEST")"
+#     cp "$TEST_DATA_PATH" "$TEST_DATA_DEST"
+# else
+#     echo "Test data not found at $TEST_DATA_PATH"
+# fi
