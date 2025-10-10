@@ -4,11 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import json
 import random
-
-random.seed(42)
-from torch.optim import AdamW
-
+import re
+import os
+from tqdm import tqdm
 from collections import defaultdict
+
+from torch.optim import AdamW
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -17,11 +18,9 @@ from transformers import BertTokenizer, BertModel
 
 # Classification Models
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+import argparse
 
-import re
-import os
-
-from tqdm import tqdm
+random.seed(42)
 
 # Check for GPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -114,5 +113,40 @@ def data_preprocess(source_data_path, output_dir, threshold=20):
     print("Saved train/test datasets with optimized embedding reuse.")
 
 
+def main():
+    """
+    Main function to preprocess data for moral word prediction.
+
+    This function serves as the entry point for the data preprocessing pipeline.
+    It takes in command-line arguments, extracts the necessary parameters, and
+    invokes the `data_preprocess` function to process the data accordingly.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Example:
+        To run the function, use the following command-line arguments:
+        ```
+        python data_processing.py --source_data_path "/path/to/source_data.json" \
+                                    --output_dir "/path/to/output_dir" \
+                                    --threshold 20
+        ```
+    """
+    parser = argparse.ArgumentParser(description="Preprocess data for moral word prediction")
+    parser.add_argument("--source_data_path", type=str, required=True, help="Path to the source data JSON file")
+    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save processed data")
+    parser.add_argument("--threshold", type=int, default=20, help="Minimum number of sentences per character")
+
+    args = parser.parse_args()
+
+    data_preprocess(
+        source_data_path=args.source_data_path,
+        output_dir=args.output_dir,
+        threshold=args.threshold
+    )
+
 if __name__ == "__main__":
-    pass
+    main()
