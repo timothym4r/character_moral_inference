@@ -9,7 +9,6 @@ from collections import defaultdict
 import torch
 
 from transformers import AutoTokenizer, AutoModel
-from torch.nn.functional import normalizes
 
 import gc, os, json, torch
 import argparse
