@@ -2,13 +2,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import json
-import random
-import re
 import os
 
 from tqdm import tqdm
 
-from collections import defaultdict
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, TensorDataset
@@ -508,12 +505,8 @@ def main(args):
             - `character_embedding.pth`: The trained character embedding state dictionary (if applicable).
     """
 
-    # We can print the arguments to check if they are set correctly
-    print(args)
-            
     input_dir = args.input_dir
     model_name = args.model_name
-    # log_path = args.log_path
     use_vae = args.use_vae
     use_one_hot = args.use_one_hot
     train_n_last_layers = args.train_n_last_layers
@@ -622,7 +615,6 @@ if __name__ == "__main__":
     parser.add_argument("--input_dir", type=str, required=True, help="Directory containing the input JSON files")
     parser.add_argument("--output_dir", type=str, default="models/moral_classifier", help="Directory to save the trained models")
     parser.add_argument("--model_name", type=str, default="bert-base-uncased", help="Pre-trained model name")
-    # parser.add_argument("--log_path", type=str, default="logs/moral_classification_log.csv", help="Path to save the log CSV file")
     parser.add_argument("--use_vae", action="store_true", help="Use Variational Autoencoder for character embeddings")
     parser.add_argument("--use_one_hot", action="store_true", help="Use one-hot encoding for character embeddings")
     parser.add_argument("--train_n_last_layers", type=int, default=4, help="Number of last layers of the model to train")

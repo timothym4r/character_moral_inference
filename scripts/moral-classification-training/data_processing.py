@@ -7,19 +7,14 @@ from tqdm import tqdm
 
 from collections import defaultdict
 import torch
-from torch.utils.data import DataLoader, TensorDataset
 
-
-from transformers import BertTokenizer, BertForMaskedLM, BertModel, AutoTokenizer, AutoModel
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-import re
-from torch.nn.functional import normalize
+from transformers import AutoTokenizer, AutoModel
+from torch.nn.functional import normalizes
 
 import gc, os, json, torch
 import argparse
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
-
 
 def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, pooling_method = "mean"):
     all_embeddings = []
@@ -50,6 +45,7 @@ def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, 
 
             all_embeddings.append(sentence_embeddings.cpu())
 
+
             torch.cuda.empty_cache()
             gc.collect()
 
@@ -59,10 +55,15 @@ def data_preprocess(
     model_name,
     source_data_path,
     output_dir,
-    threshold=100,
-    moral_only_past_sentences=False,   # <- controls filtering
-    pooling_method = "mean"
+    threshold=20,                # Threshold represents the minimum number of past sentences each data point should have
+    moral_only_past_sentences=False,
+    pooling_method="mean",
+    sampling_strategy="none",     # "none" | "down" | "up"
+    repeat=1,                     # how many balanced splits to create
+    seed=42
 ):
+    random.seed(seed)
+
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     bert_model = AutoModel.from_pretrained(model_name).to(
         "cuda" if torch.cuda.is_available() else "cpu"
@@ -72,34 +73,33 @@ def data_preprocess(
     with open(source_data_path, "r") as f:
         data = json.load(f)
 
-    sentences_data = data["sentences"]
+    sentences_data = data["sentence"]
+    # sentences_data = data["sentences"]
     ground_truths  = data["ground_truths"]
 
-    train_data, test_data = [], []
+    all_records = []
 
+    if threshold <= 0:
+        print("Threshold should be greater than 0 as each data point should at least have 1 past sentence")
+
+    # Build all records (no split yet)
     for movie, characters in tqdm(sentences_data.items(), desc="Processing characters"):
         for character, sentences in characters.items():
             num_sentences = len(sentences)
-            if num_sentences < threshold:
+            if num_sentences <= threshold:
                 continue
 
-            labels = ground_truths[movie][character]  # list[int] same length as sentences
+            labels = ground_truths[movie][character]
 
             try:
-                # Encode all sentences for this character once (batched inside)
                 sentence_embeddings = get_sentence_embeddings(
-                    sentences, bert_model, tokenizer, bert_model.device, pooling_method = pooling_method
-                )  # shape: (num_sentences, H)
+                    sentences, bert_model, tokenizer, bert_model.device, pooling_method=pooling_method
+                )
 
-                test_start_idx = int(num_sentences * 0.7)
-
-                # iterate over targets; history is sentences[:idx]
-                for idx in range(1, num_sentences):
-                    # Build mask for prior moral sentences if requested
+                for idx in range(threshold, num_sentences):
                     if moral_only_past_sentences:
                         prior_labels = labels[:idx]
                         moral_mask = torch.tensor(prior_labels, dtype=torch.bool, device=sentence_embeddings.device)
-                        # Keep only moral=1; if none, fall back to all prior sentences
                         if moral_mask.any():
                             past_embeds = sentence_embeddings[:idx][moral_mask]
                             past_sents  = [s for s, y in zip(sentences[:idx], prior_labels) if y == 1]
@@ -123,32 +123,56 @@ def data_preprocess(
                         "history_len": len(past_sents),
                         "history_pos_count": int(sum(labels[:idx])) if moral_only_past_sentences else None,
                     }
-
-                    if idx < test_start_idx:
-                        train_data.append(record)
-                    else:
-                        test_data.append(record)
+                    all_records.append(record)
 
             except RuntimeError as e:
                 print(f"Skipping {character} from {movie} due to memory error: {e}")
-
             finally:
                 torch.cuda.empty_cache()
                 gc.collect()
 
-    os.makedirs(output_dir, exist_ok=True)
-    if moral_only_past_sentences:
-        with open(os.path.join(output_dir, f"train_data_moral_only_{pooling_method}.json"), "w") as f:
-            json.dump(train_data, f)
-        with open(os.path.join(output_dir, f"test_data_moral_only_{pooling_method}.json"), "w") as f:
-            json.dump(test_data, f)
-    else:
-        with open(os.path.join(output_dir, f"train_data_{pooling_method}.json"), "w") as f:
-            json.dump(train_data, f)
-        with open(os.path.join(output_dir, f"test_data_{pooling_method}.json"), "w") as f:
-            json.dump(test_data, f)
+    # Split once into train/test (70/30)
+    split_idx = int(len(all_records) * 0.7)
+    full_train_data = all_records[:split_idx]
+    test_data = all_records[split_idx:]   # keep test set untouched (natural imbalance)
 
-    print("Saved train/test datasets using model:", model_name)
+    # Apply repeatable sampling to training set
+    os.makedirs(output_dir, exist_ok=True)
+
+    for r in range(repeat):
+        if sampling_strategy == "none":
+            train_data = full_train_data[:]
+
+        else:
+            pos_samples = [rec for rec in full_train_data if rec["label"] == 1]
+            neg_samples = [rec for rec in full_train_data if rec["label"] == 0]
+
+            if sampling_strategy == "down":
+                sampled_neg = random.sample(neg_samples, k=len(pos_samples))
+                train_data = pos_samples + sampled_neg
+            elif sampling_strategy == "up":
+                sampled_pos = random.choices(pos_samples, k=len(neg_samples))
+                train_data = sampled_pos + neg_samples
+
+            random.shuffle(train_data)
+
+        # Save split
+        suffix = pooling_method
+        if sampling_strategy == "down":
+            suffix += f"_downsampled_split{r+1}"
+        elif sampling_strategy == "up":
+            suffix += f"_upsampled_split{r+1}"
+        else:
+            suffix += f"_regular"
+
+        with open(os.path.join(output_dir, f"train_data_{suffix}.json"), "w") as f:
+            json.dump(train_data, f)
+        if r == 0:  # only need to save test once
+            with open(os.path.join(output_dir, f"test_data_{suffix}.json"), "w") as f:
+                json.dump(test_data, f)
+
+    print(f"Saved train/test datasets using model: {model_name} (strategy={sampling_strategy}, repeat={repeat})")
+
 
 def main(args):
     """
@@ -212,7 +236,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", type=str, required=True, help="Hugging Face model name")
     parser.add_argument("--source_data_path", type=str, required=False, help="Path to the source data JSON file")
     parser.add_argument("--output_dir", type=str, required=True, help="Directory to save processed data")
-    parser.add_argument("--threshold", type=int, default=100, help="Minimum number of sentences per character")
+    parser.add_argument("--threshold", type=int, default=20, help="Minimum number of sentences per character")
     parser.add_argument("--moral_only_past_sentences", action="store_true", help="Use only moral past sentences for training")
     parser.add_argument("--reprocess", action="store_true", help="Reprocess data even if it exists")
     parser.add_argument("--pooling_method", type=str, default="mean", choices=["mean", "cls"], help="Pooling method for sentence embeddings")

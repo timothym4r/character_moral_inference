@@ -2,7 +2,10 @@ import json
 import torch
 from transformers import AutoTokenizer, AutoModel
 from tqdm import tqdm
+import pickle
+import os
 
+# TODO: Define function that splits sentences that are too long (> max_length) into smaller chunks
 
 # Embedding function
 def generate_embeddings(tokenizer, model, sentences, batch_size=32, max_length=256,
@@ -25,12 +28,14 @@ def generate_embeddings(tokenizer, model, sentences, batch_size=32, max_length=2
 
             if pooling == "cls":
                 pooled = h[:, 0, :]                                    # (B, H)
-            else:
+            elif pooling == "mean":
                 attn = enc["attention_mask"].float()                   # (B, T)
                 if exclude_special_tokens and "special_tokens_mask" in enc:
                     attn = attn * (1.0 - enc["special_tokens_mask"].float())
                 attn = attn.unsqueeze(-1)                               # (B, T, 1)
                 pooled = (h * attn).sum(1) / attn.sum(1).clamp(min=1e-9)
+            else:
+                raise ValueError(f"Pooling method {pooling} is not yet supported")
 
         out_chunks.append(pooled.cpu())
         del enc, h, pooled
@@ -52,25 +57,16 @@ def main(args):
         print("Embeddings do not exist or --regenerate flag is set. Proceeding to forced embeddings regeneration...")
 
     # Define model names
-    model_names_dictionary = {
-        "bert": "bert-base-uncased",
-        "roberta": "roberta-base",
-        "deberta": "microsoft/deberta-v3-base",
-        "electra": "google/electra-base-discriminator"
-    }
 
     # Load all tokenizers and models once
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Define Tokenizers and Models
-    tokenizers = {name: AutoTokenizer.from_pretrained(model_name) for name, model_name in model_names_dictionary.items()}
-    models = {name: AutoModel.from_pretrained(model_name).to(device).eval() for name, model_name in model_names_dictionary.items()}
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    model = AutoModel.from_pretrained(args.model_name).to(device)
 
-    # Initialize your 4 embedding dictionaries
-    bert_embeddings = {}
-    roberta_embeddings = {}
-    deberta_embeddings = {}
-    electra_embeddings = {}
+    # Initialize the embedding dictionary
+    embeddings = {}
     
     # Extract arguments from the command line
     data_file_path = args.data_file
@@ -89,50 +85,29 @@ def main(args):
     # Load the data
     with open(data_file_path, "r") as f:
         data = json.load(f)
+    
+    if "sentence" not in data:
+        sentence_label = "sentences"
+    else:
+        sentence_label = "sentence"
 
-    # Generate embeddings for each model
-    for movie, characters in tqdm(data["sentences"].items(), desc="Processing movies"):
-        bert_embeddings[movie] = {}
-        roberta_embeddings[movie] = {}
-        deberta_embeddings[movie] = {}
-        electra_embeddings[movie] = {}
+    # TODO: Add code to support for multiple models if needed
+    # Generate embeddings for each model 
+    for movie, characters in tqdm(data[sentence_label].items(), desc="Processing movies"):
+        embeddings[movie] = {}
 
         for character, sentences in tqdm(characters.items(), desc=f"Processing characters in {movie}", leave=False):
-            bert_embeddings[movie][character] = generate_embeddings(
-                tokenizers["bert"], models["bert"], sentences, batch_size=batch_size, max_length=max_length,
+            embeddings[movie][character] = generate_embeddings(
+                tokenizer, model, sentences, batch_size=batch_size, max_length=max_length,
                 pooling=pooling, exclude_special_tokens=exclude_special_tokens, to_numpy=to_numpy, device=device
             )
-            roberta_embeddings[movie][character] = generate_embeddings(
-                tokenizers["roberta"], models["roberta"], sentences, batch_size=batch_size, max_length=max_length,
-                pooling=pooling, exclude_special_tokens=exclude_special_tokens, to_numpy=to_numpy, device=device
-            )
-            deberta_embeddings[movie][character] = generate_embeddings(
-                tokenizers["deberta"], models["deberta"], sentences, batch_size=batch_size, max_length=max_length,
-                pooling=pooling, exclude_special_tokens=exclude_special_tokens, to_numpy=to_numpy, device=device
-            )
-            electra_embeddings[movie][character] = generate_embeddings(
-                tokenizers["electra"], models["electra"], sentences, batch_size=batch_size, max_length=max_length,
-                pooling=pooling, exclude_special_tokens=exclude_special_tokens, to_numpy=to_numpy, device=device
-            )
-
-    import pickle
-    import os
 
     output_dir = args.output_dir
     os.makedirs(output_dir, exist_ok=True)
 
     # Save each embedding dictionary
-    with open(os.path.join(output_dir, "bert_embeddings.pkl"), "wb") as f:
-        pickle.dump(bert_embeddings, f)
-
-    with open(os.path.join(output_dir, "roberta_embeddings.pkl"), "wb") as f:
-        pickle.dump(roberta_embeddings, f)
-
-    with open(os.path.join(output_dir, "deberta_embeddings.pkl"), "wb") as f:
-        pickle.dump(deberta_embeddings, f)
-
-    with open(os.path.join(output_dir, "electra_embeddings.pkl"), "wb") as f:
-        pickle.dump(electra_embeddings, f)
+    with open(os.path.join(output_dir, f"sentence_embeddings_{args.model_name}.pkl"), "wb") as f:
+        pickle.dump(embeddings, f)
 
     print("All embeddings saved.")
 
@@ -147,6 +122,7 @@ if __name__ == "__main__":
     parser.add_argument("--pooling", type=str, default="mean", choices=["mean", "cls"], help="Pooling strategy for embeddings.")
     parser.add_argument("--exclude_special_tokens", action="store_true", help="Exclude special tokens from embeddings.")
     parser.add_argument("--to_numpy", action="store_true", help="Return embeddings as numpy arrays instead of tensors.")
+    parser.add_argument("--model_name", type=str, default="bert-base-uncased", help="Base model name for tokenization.")
     args = parser.parse_args()
     
     # Print the configuration

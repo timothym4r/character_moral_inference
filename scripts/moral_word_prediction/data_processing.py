@@ -135,6 +135,10 @@ def main():
                                     --threshold 20
         ```
     """
+    # TODO: Add more arguments:
+    # - model_name (for embeddings)
+    # - pooling_method (mean, cls, etc)
+    # - reprocess (bool) to skip processing if files exist
     parser = argparse.ArgumentParser(description="Preprocess data for moral word prediction")
     parser.add_argument("--source_data_path", type=str, required=True, help="Path to the source data JSON file")
     parser.add_argument("--output_dir", type=str, required=True, help="Directory to save processed data")

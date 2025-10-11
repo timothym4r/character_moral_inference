@@ -20,7 +20,6 @@ import torch.nn as nn
 from transformers import AutoTokenizer, AutoModel
 
 # Set directory
-SENTENCE_DATA_PATH = '../../data/dump/project_6_data.json'
 embedding_dir = "../data/structured_embeddings"
 
 class Autoencoder(nn.Module):
@@ -277,8 +276,7 @@ def load_or_compute_embeddings(embeddings_path, recompute=False, pooling_method 
             raise FileNotFoundError("Classifier model not found in the specified path.")
 
         # Define the sentence data
-        # TODO: Make SENTENCE_DATA_PATH a parameter
-        with open(SENTENCE_DATA_PATH, "r") as f:
+        with open(args.sentence_data_path, "r") as f:
             sentence_data = json.load(f) 
 
         # embeddings contains the BERT-based embeddings.
@@ -371,25 +369,19 @@ if __name__ == "__main__":
     # We let the user specify because unlike moral rating data, there are several embedding folders depending
     # on the training trials. 
     parser.add_argument("source_folder_path", help="The path to the source folder")
-    
     # Optional argument with default
     # parser.add_argument("--trainable_base", type=int, default=1, help="Whether the model is trainable or not (1 for yes, 0 for no)")
-
     parser.add_argument(
         "--model_name",
         type=str,
         default="bert-base-uncased",
         help="The name of the base model to use for embeddings"
     )
-
     # Flag (boolean switch)
     parser.add_argument("--recompute_embeddings", action="store_true", help="The base model is trainable")
-    
     # Currently we only support CLS and mean-pooled embeddings.
     parser.add_argument("--cls_embeddings", action="store_true", help="Use CLS embeddings for injection")
-
-    parser.add_argument("--sentence_data_path", type=str, default=SENTENCE_DATA_PATH, help="Path to the sentence data file")
-    SENTENCE_DATA_PATH= parser.get_default('sentence_data_path')
+    parser.add_argument("--sentence_data_path", type=str, help="Path to the sentence data file")
 
     # Parse the arguments
     args = parser.parse_args()  
