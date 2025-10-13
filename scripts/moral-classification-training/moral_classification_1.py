@@ -575,6 +575,19 @@ def main(args):
             with open(os.path.join(input_dir, f"test_data_{curr_suffix}.json"), "r") as f:
                 test_data = json.load(f)
 
+        ## NOTE: We convert the labels to 0 and 1 here since the dataset class expects numerical labels
+        for k in train_data:
+            if k["label"] == "Yes":
+                k["label"] = 1
+            else:
+                k["label"] = 0
+
+        for k in test_data:
+            if k["label"] == "Yes":
+                k["label"] = 1
+            else:
+                k["label"] = 0       
+
         log_path = os.path.join(args.output_dir, "logs", f"{model_name}_moral_classification_log.csv")
         init_csv(log_path)
 
@@ -659,6 +672,7 @@ if __name__ == "__main__":
     parser.add_argument("--injection_method", type=str, default="sum", choices=["sum", "concat"], help="Method to inject embeddings")
     parser.add_argument("--retrain", action="store_true", help="Regenerate embeddings even if they already exist.")
     parser.add_argument("--sampling_strategy", type=str, default="none", choices=["down", "up", "none"], help="Sampling strategy for training data")
+    parser.add_argument("--repeat", type=int, default=1, help="Number of times to repeat training with different data splits")
     args = parser.parse_args()
     main(args)
     print("Training complete.")
