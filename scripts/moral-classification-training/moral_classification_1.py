@@ -550,66 +550,86 @@ def main(args):
         for arg, value in vars(args).items():
             f.write(f"{arg}: {value}\n")
 
-    with open(os.path.join(input_dir, f"train_data_{injection_pooling_method}.json"), "r") as f:
-        train_data = json.load(f)
+    suffix = injection_pooling_method
+    sampling_strategy = args.sampling_strategy
 
-    with open(os.path.join(input_dir, f"test_data_{injection_pooling_method}.json"), "r") as f:
-        test_data = json.load(f)
+    if sampling_strategy == "down":
+        suffix += f"_downsampled"
+    elif sampling_strategy == "up":
+        suffix += f"_upsampled"
+    else:
+        suffix += f"_regular"
 
-    log_path = os.path.join(args.output_dir, "logs", f"{model_name}_moral_classification_log.csv")
-    init_csv(log_path)
+    for r in range(1, args.repeat + 1):
+        curr_suffix = suffix
+        if args.repeat > 1:
+            curr_suffix += f"_split{r}"
+        with open(os.path.join(input_dir, f"train_data_{curr_suffix}.json"), "r") as f:
+            train_data = json.load(f)
 
-    train_dataset = MoralRelevanceDataset(train_data, tokenizer=None, use_one_hot=False)
-    val_dataset = MoralRelevanceDataset(test_data, tokenizer=None, use_one_hot=False)
+        if args.repeat > 1:
+            # When we do more than 1 repetition, the test data will still be the same for all repetitions
+            with open(os.path.join(input_dir, f"test_data_{suffix}1.json"), "r") as f:
+                test_data = json.load(f)
+        else:
+            with open(os.path.join(input_dir, f"test_data_{curr_suffix}.json"), "r") as f:
+                test_data = json.load(f)
 
-    model_H, classifier, character_embedding = train_moral_classifier(
-        train_dataset=train_dataset,
-        val_dataset=val_dataset,
-        model_name=model_name,
-        use_vae=use_vae,
-        use_one_hot=use_one_hot,
-        char2id=None,
-        train_n_last_layers=train_n_last_layers,
-        latent_dim=latent_dim,
-        alpha=alpha,
-        beta=beta,
-        num_epochs=num_epochs,
-        batch_size=batch_size,
-        lr_1=lr_1,
-        lr_2=lr_2,
-        dropout_rate=dropout_rate,
-        clip_grad_norm=clip_grad_norm,
-        weight_decay=weight_decay,
-        scheduler_type=scheduler_type,
-        log_path=log_path,
-        pos_weight=pos_weight,
-        early_stopping_patience=early_stopping_patience,
-        early_stopping_metric=early_stopping_metric,
-        minimize_metric=minimize_metric,
-        inject_embedding=inject_embedding,
-        injection_pooling_method=injection_pooling_method,
-        classification_pooling_method=classification_pooling_method,
-        injection_method=injection_method
-    )
+        log_path = os.path.join(args.output_dir, "logs", f"{model_name}_moral_classification_log.csv")
+        init_csv(log_path)
 
-    # Save the trained models
-    output_dir = args.output_dir
+        train_dataset = MoralRelevanceDataset(train_data, tokenizer=None, use_one_hot=False)
+        val_dataset = MoralRelevanceDataset(test_data, tokenizer=None, use_one_hot=False)
 
-    os.makedirs(output_dir, exist_ok=True)
+        model_H, classifier, character_embedding = train_moral_classifier(
+            train_dataset=train_dataset,
+            val_dataset=val_dataset,
+            model_name=model_name,
+            use_vae=use_vae,
+            use_one_hot=use_one_hot,
+            char2id=None,
+            train_n_last_layers=train_n_last_layers,
+            latent_dim=latent_dim,
+            alpha=alpha,
+            beta=beta,
+            num_epochs=num_epochs,
+            batch_size=batch_size,
+            lr_1=lr_1,
+            lr_2=lr_2,
+            dropout_rate=dropout_rate,
+            clip_grad_norm=clip_grad_norm,
+            weight_decay=weight_decay,
+            scheduler_type=scheduler_type,
+            log_path=log_path,
+            pos_weight=pos_weight,
+            early_stopping_patience=early_stopping_patience,
+            early_stopping_metric=early_stopping_metric,
+            minimize_metric=minimize_metric,
+            inject_embedding=inject_embedding,
+            injection_pooling_method=injection_pooling_method,
+            classification_pooling_method=classification_pooling_method,
+            injection_method=injection_method
+        )
 
-    model_H_save_path = os.path.join(output_dir, "model_H.pth")
-    classifier_save_path = os.path.join(output_dir, "classifier.pth")
-    character_embedding_save_path = os.path.join(output_dir, "character_embedding.pth")
+        # Save the trained models
+        output_dir = args.output_dir
 
-    if model_H:
-        torch.save(model_H.state_dict(), model_H_save_path)
+        os.makedirs(output_dir, exist_ok=True)
 
-    torch.save(classifier.state_dict(), classifier_save_path)
-    
-    if character_embedding:
-        torch.save(character_embedding.state_dict(), character_embedding_save_path)
+        model_H_save_path = os.path.join(output_dir, f"model_H_{curr_suffix}.pth")
+        classifier_save_path = os.path.join(output_dir, f"classifier_{curr_suffix}.pth")
+        character_embedding_save_path = os.path.join(output_dir, f"character_embedding_{curr_suffix}.pth")
+
+        if model_H:
+            torch.save(model_H.state_dict(), model_H_save_path)
+
+        torch.save(classifier.state_dict(), classifier_save_path)
+        
+        if character_embedding:
+            torch.save(character_embedding.state_dict(), character_embedding_save_path)
 
 if __name__ == "__main__":
+    print("Starting moral classification training script...")
     parser = argparse.ArgumentParser(description="Train Moral Classifier")
 
     parser.add_argument("--input_dir", type=str, required=True, help="Directory containing the input JSON files")
@@ -638,6 +658,9 @@ if __name__ == "__main__":
     parser.add_argument("--injection_pooling_method", type=str, default="mean", choices=["mean", "max"], help="Pooling method for injection")
     parser.add_argument("--injection_method", type=str, default="sum", choices=["sum", "concat"], help="Method to inject embeddings")
     parser.add_argument("--retrain", action="store_true", help="Regenerate embeddings even if they already exist.")
-
+    parser.add_argument("--sampling_strategy", type=str, default="none", choices=["down", "up", "none"], help="Sampling strategy for training data")
     args = parser.parse_args()
     main(args)
+    print("Training complete.")
+
+

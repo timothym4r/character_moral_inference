@@ -112,6 +112,7 @@ def main(args):
     print("All embeddings saved.")
 
 if __name__ == "__main__":
+    print("Starting embeddings generation script...")
 
     parser = argparse.ArgumentParser(description="Generate sentence embeddings for characters in movies.")
     parser.add_argument("--output_dir", type=str, required=True, help="Directory to save the generated embeddings.")
@@ -130,4 +131,3 @@ if __name__ == "__main__":
 
     main(args)
     print("Embeddings generation completed and saved to disk.")
-

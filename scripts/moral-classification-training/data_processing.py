@@ -230,6 +230,7 @@ def main(args):
             f"Use --reprocess to force regeneration.")
 
 if __name__ == "__main__":
+    print("Starting data preprocessing for moral relevance classification...")
 
     parser = argparse.ArgumentParser(description="Preprocess data for moral relevance classification")
     parser.add_argument("--model_name", type=str, required=True, help="Hugging Face model name")
@@ -243,3 +244,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args)
+    print("Data preprocessing completed.")

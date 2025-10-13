@@ -360,6 +360,7 @@ def main(args):
     )
 
 if __name__ == "__main__":
+    print("Starting Embeddings analysis...")
 
     parser = argparse.ArgumentParser(description="Example CLI script")
     
@@ -387,3 +388,4 @@ if __name__ == "__main__":
     args = parser.parse_args()  
 
     main(args)
+    print("Embeddings analysis completed.")
