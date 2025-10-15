@@ -562,12 +562,12 @@ def main(args):
 
     for r in range(1, args.repeat + 1):
         curr_suffix = suffix
-        if args.repeat > 1:
+        if sampling_strategy == "down" or sampling_strategy == "up":
             curr_suffix += f"_split{r}"
         with open(os.path.join(input_dir, f"train_data_{curr_suffix}.json"), "r") as f:
             train_data = json.load(f)
 
-        if args.repeat > 1:
+        if sampling_strategy == "down" or sampling_strategy == "up":
             # When we do more than 1 repetition, the test data will still be the same for all repetitions
             with open(os.path.join(input_dir, f"test_data_{suffix}1.json"), "r") as f:
                 test_data = json.load(f)
@@ -588,7 +588,7 @@ def main(args):
             else:
                 k["label"] = 0       
 
-        log_path = os.path.join(args.output_dir, "logs", f"{model_name}_moral_classification_log.csv")
+        log_path = os.path.join(args.output_dir, "logs", f"{curr_suffix}_moral_classification_log.csv")
         init_csv(log_path)
 
         train_dataset = MoralRelevanceDataset(train_data, tokenizer=None, use_one_hot=False)
