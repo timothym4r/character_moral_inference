@@ -156,9 +156,9 @@ def compute_orthogonality_loss(z, strategy="off_diag"):
 def train_moral_classifier(
     train_dataset, val_dataset, model_name,
     use_vae=False, use_one_hot=False, char2id=None, train_n_last_layers=0,
-    latent_dim=20, alpha=0.1, beta=0.01, num_epochs=10, batch_size=32, lr_1 = 1e-3, lr_2=2e-5,
+    latent_dim=20, alpha=0.1, beta=0.1, num_epochs=10, batch_size=32, lr_1 = 1e-3, lr_2=2e-5,
     dropout_rate=0.1, clip_grad_norm=5.0, weight_decay=1e-5,
-    scheduler_type="cosine", log_path = None, pos_weight = 4.0, early_stopping_patience=3, early_stopping_metric="f1_score", minimize_metric=False,
+    scheduler_type="cosine", log_path = None, pos_weight = 1.0, early_stopping_patience=3, early_stopping_metric="f1_score", minimize_metric=False,
     inject_embedding=True, classification_pooling_method = "cls", injection_pooling_method = "mean", injection_method = "sum"
 ):
     from transformers import AutoTokenizer, AutoModel
@@ -569,7 +569,7 @@ def main(args):
 
         if sampling_strategy == "down" or sampling_strategy == "up":
             # When we do more than 1 repetition, the test data will still be the same for all repetitions
-            with open(os.path.join(input_dir, f"test_data_{suffix}1.json"), "r") as f:
+            with open(os.path.join(input_dir, f"test_data_{suffix}_split1.json"), "r") as f:
                 test_data = json.load(f)
         else:
             with open(os.path.join(input_dir, f"test_data_{curr_suffix}.json"), "r") as f:
