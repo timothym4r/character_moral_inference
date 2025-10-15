@@ -135,13 +135,13 @@ def method_2(embeddings_data, ratings_data):
 
     return pd.DataFrame(rows)
 
-def load_ratings():
+def load_ratings(path:str):
     """Load ratings from the specified path.
-    
-    TODO: Modify the logic to load from original ratings data instead of structured data.
+
+    We're expecting the data to be in the form of "structured data" JSON files.
     """
 
-    with open('../../data/dump/structured_data.json', 'r') as f:
+    with open(path, 'r') as f:
         data = json.load(f)
 
     moral_ratings = {}
@@ -173,7 +173,7 @@ def load_model_and_tokenizer(model_name, model_path):
 
     return classifier.bert, AutoTokenizer.from_pretrained(model_name)
 
-def generate_embeddings(tokenizer, model, sentences, batch_size=8, max_length=256,
+def generate_embeddings(tokenizer, model, sentences, batch_size=32, max_length=256,
                         pooling="mean", exclude_special_tokens=True, to_numpy=True, device=None):
   
     """Generate sentence embeddings with a BERT-based model. """
@@ -249,7 +249,7 @@ def encode_latent_embeddings(embeddings, model_H):
     return encoded_embeddings
 
 
-def load_or_compute_embeddings(embeddings_path, recompute=False, pooling_method = "cls", model_name = "bert-base-uncased"):
+def load_or_compute_embeddings(embeddings_path, sentence_data_path = None, recompute=False, pooling_method = "cls", model_name = "bert-base-uncased"):
     
     if not recompute:
         try:
@@ -276,7 +276,10 @@ def load_or_compute_embeddings(embeddings_path, recompute=False, pooling_method 
             raise FileNotFoundError("Classifier model not found in the specified path.")
 
         # Define the sentence data
-        with open(args.sentence_data_path, "r") as f:
+        if sentence_data_path is None:
+            raise ValueError("Please provide the path to the sentence data file when recomputing embeddings.")
+
+        with open(sentence_data_path, "r") as f:
             sentence_data = json.load(f) 
 
         # embeddings contains the BERT-based embeddings.
@@ -308,7 +311,7 @@ def load_or_compute_embeddings(embeddings_path, recompute=False, pooling_method 
         
         return latent_embeddings
 
-def run_analysis(embeddings_path, recompute_embeddings = False, pooling_method = "cls", model_name = "bert-base-uncased"):
+def run_analysis(embeddings_path, output_dir, rating_data_path, sentence_data_path = None, recompute_embeddings = False, pooling_method = "cls", model_name = "bert-base-uncased", correlation_threshold=0.4):
     """This will load the data required, run the methods, and store the results.
 
     The results will be stored in the same folder as the embeddings data.
@@ -317,9 +320,11 @@ def run_analysis(embeddings_path, recompute_embeddings = False, pooling_method =
         embeddings_path (str): Path to the folder containing the embeddings data or the BERT-based model that computes them.
         recompute_embeddings (bool): Whether to recompute embeddings.
     """
+    # TODO:
+    # 1. Add some more analysis methods and modify the existing methods
 
-    embeddings_data = load_or_compute_embeddings(embeddings_path, recompute=recompute_embeddings, pooling_method=pooling_method, model_name=model_name)
-    ratings_data = load_ratings()
+    embeddings_data = load_or_compute_embeddings(embeddings_path, sentence_data_path=sentence_data_path, recompute=recompute_embeddings, pooling_method=pooling_method, model_name=model_name)
+    ratings_data = load_ratings(rating_data_path)
     
     # Embeddings data here contains sentence-level embeddings for each character in each movie.
     # Before proceeding to analysis, we need to transform them into character-level emebddings. 
@@ -327,15 +332,19 @@ def run_analysis(embeddings_path, recompute_embeddings = False, pooling_method =
     method_2_result = method_2(embeddings_data, ratings_data)
 
     # Save the results
-    if recompute_embeddings:
-        method_1_result.to_csv(os.path.join(embeddings_path, "method_1_results.csv"))
-        method_2_result.to_csv(os.path.join(embeddings_path, "method_2_results.csv"))
-        save_folder_path = embeddings_path
-    else:
-        method_1_result.to_csv(os.path.join(os.path.dirname(embeddings_path), "method_1_results.csv"))
-        method_2_result.to_csv(os.path.join(os.path.dirname(embeddings_path), "method_2_results.csv"))
-        save_folder_path = Path(embeddings_path).parent
+    # if recompute_embeddings:
+    #     method_1_result.to_csv(os.path.join(embeddings_path, "method_1_results.csv"))
+    #     method_2_result.to_csv(os.path.join(embeddings_path, "method_2_results.csv"))
+    #     save_folder_path = embeddings_path
+    # else:
+    #     # embeddings_path is a file path, so we save in the same directory
+    #     method_1_result.to_csv(os.path.join(os.path.dirname(embeddings_path), "method_1_results.csv"))
+    #     method_2_result.to_csv(os.path.join(os.path.dirname(embeddings_path), "method_2_results.csv"))
+    #     save_folder_path = Path(embeddings_path).parent
 
+    save_folder_path = output_dir
+    method_1_result.to_csv(os.path.join(save_folder_path, "method_1_results.csv"))
+    method_2_result.to_csv(os.path.join(save_folder_path, "method_2_results.csv"))
 
     plot_r2_scores(
         method_2_result,
@@ -346,7 +355,7 @@ def run_analysis(embeddings_path, recompute_embeddings = False, pooling_method =
     )
     # Get strong correlations
     
-    get_strong_correlations(method_1_result, threshold=0.4, save_path=os.path.join(save_folder_path, "strong_correlations.csv"))
+    get_strong_correlations(method_1_result, threshold=correlation_threshold, save_path=os.path.join(save_folder_path, "strong_correlations.csv"))
 
     return method_1_result, method_2_result
 
@@ -354,9 +363,13 @@ def main(args):
 
     run_analysis(
         embeddings_path=args.source_folder_path,
+        sentence_data_path=args.sentence_data_path,
         recompute_embeddings=args.recompute_embeddings,
         model_name=args.model_name,
-        pooling_method="cls" if args.cls_embeddings else "mean"
+        pooling_method="cls" if args.cls_embeddings else "mean",
+        rating_data_path=args.rating_data_path,
+        correlation_threshold=args.correlation_threshold,
+        output_dir=args.output_dir
     )
 
 if __name__ == "__main__":
@@ -383,6 +396,9 @@ if __name__ == "__main__":
     # Currently we only support CLS and mean-pooled embeddings.
     parser.add_argument("--cls_embeddings", action="store_true", help="Use CLS embeddings for injection")
     parser.add_argument("--sentence_data_path", type=str, help="Path to the sentence data file")
+    parser.add_argument("--rating_data_path", type=str, help="Path to the character ratings data file")
+    parser.add_argument("--correlation_threshold", type=float, default=0.4, help="Threshold for strong correlations")
+    parser.add_argument("--output_dir", type=str, help="Directory to save the analysis results")
 
     # Parse the arguments
     args = parser.parse_args()  

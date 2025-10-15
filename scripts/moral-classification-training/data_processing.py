@@ -222,7 +222,8 @@ def main(args):
             output_dir=args.output_dir,
             threshold=args.threshold,
             moral_only_past_sentences=args.moral_only_past_sentences,
-            pooling_method=args.pooling_method
+            pooling_method=args.pooling_method,
+            sampling_strategy=args.sampling_strategy,
         )
     else:
         print(
@@ -240,6 +241,7 @@ if __name__ == "__main__":
     parser.add_argument("--moral_only_past_sentences", action="store_true", help="Use only moral past sentences for training")
     parser.add_argument("--reprocess", action="store_true", help="Reprocess data even if it exists")
     parser.add_argument("--pooling_method", type=str, default="mean", choices=["mean", "cls"], help="Pooling method for sentence embeddings")
+    parser.add_argument("--sampling_strategy", type=str, default="none", choices=["none", "down", "up"], help="Sampling strategy for training data")
 
     args = parser.parse_args()
 
