@@ -143,8 +143,8 @@ def data_preprocess(
             train_data = full_train_data[:]
 
         else:
-            pos_samples = [rec for rec in full_train_data if rec["label"] == 1]
-            neg_samples = [rec for rec in full_train_data if rec["label"] == 0]
+            pos_samples = [rec for rec in full_train_data if rec["label"] == "Yes"]
+            neg_samples = [rec for rec in full_train_data if rec["label"] == "No"]
 
             if sampling_strategy == "down":
                 sampled_neg = random.sample(neg_samples, k=len(pos_samples))
