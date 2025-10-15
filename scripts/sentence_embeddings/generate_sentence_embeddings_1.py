@@ -106,7 +106,7 @@ def main(args):
     os.makedirs(output_dir, exist_ok=True)
 
     # Save each embedding dictionary
-    with open(os.path.join(output_dir, f"sentence_embeddings_{args.model_name}.pkl"), "wb") as f:
+    with open(os.path.join(output_dir, f"sentence_embeddings_{args.model_name}_{args.pooling}.pkl"), "wb") as f:
         pickle.dump(embeddings, f)
 
     print("All embeddings saved.")
