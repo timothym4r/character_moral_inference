@@ -43,92 +43,142 @@ def custom_collate_fn(batch):
 
     return batch_collated
 
-def update_char_vec_embeddings(dataset, tokenizer, encoder, device, batch_size=64, pooling_method = 'mean'):
+# def update_char_vec_embeddings(dataset, tokenizer, encoder, device, batch_size=64, pooling_method = 'mean'):
+#     """
+#     Update 'avg_embedding' in-place for each example in the dataset based on current encoder state.
+
+#     Here we will apply an algorithm that makes sure there's no duplication of effort during embeddings generation.
+
+#     Steps:
+#     - Generate the sentence embeddings for all the characters
+#     - Index them properly, take the average, then assign it to corresponding data point in original dataset
+
+#     Some variations:
+#     - Since there will be data points splitting and a character's data points might be separated between test and training dataset,
+#       we need to make sure we assign them properly and by order.
+
+#     """
+#     encoder.eval()
+
+#     with torch.no_grad():
+#         cur_char = None
+#         cur_movie = None
+#         first_index = 0
+#         last_index = 0
+#         data_length = len(dataset)
+#         for i, row in enumerate(tqdm(dataset, desc="Updating char_vecs")):
+
+#             cur_movie = row["movie"]
+#             cur_char = row["character"]
+
+#             # Check if the next character is the same as current character
+#             # Also check if the next data point is not available
+#             if i + 1 < data_length and dataset[i+1]["movie"] == cur_movie and dataset[i+1]["character"] == cur_char:
+#                 last_index += 1
+#                 continue
+
+#             past_sentences = row.get("past_sentences", [])
+#             num_past_sentences = len(past_sentences)
+
+#             ### TODO: EDIT THE BELOW
+
+#             if num_past_sentences == 0:
+#                 row["avg_embedding"] = torch.zeros(768)
+#                 continue
+
+#             # Encode in chunks to save memory
+#             all_embeddings = []
+#             for j in range(0, num_past_sentences, batch_size):
+#                 batch_sentences = past_sentences[j:j + batch_size]
+#                 encoded = tokenizer(
+#                     batch_sentences,
+#                     return_tensors="pt",
+#                     padding=True,
+#                     truncation=True,
+#                     max_length=256
+#                 ).to(device)
+
+#                 outputs = encoder(**encoded)
+#                 last_hidden = outputs.last_hidden_state
+#                 if pooling_method == 'mean':
+#                     attn_mask = encoded["attention_mask"].unsqueeze(-1)  # shape: (batch_size, seq_len, 1)
+#                     # .clamp(min = 1e-9) prevents division by 0
+#                     pooled = (last_hidden * attn_mask).sum(1) / attn_mask.sum(1).clamp(min=1e-9)
+#                 elif pooling_method == 'cls':
+#                     pooled = last_hidden[:, 0, :]
+
+#                 all_embeddings.append(pooled.cpu())
+
+#             # all_embeddings contains all sentence embeddings that we need
+#             # Start the indexing logic + averaging
+
+#             flat_embeds = torch.cat(all_embeddings, dim=0)  # Shape: (num_sentences, 768)
+
+#             for k in range(num_past_sentences-1):   # We use num_past_sentences-1 because there needs to be at least 1 past sentence for each data point
+
+#                 # If we reach the left edge
+#                 # This is the case where a character data points are splited by train-test split
+#                 if i - k < 0:
+#                     break
+
+#                 cur_past_sentences = flat_embeds[:len(flat_embeds) - k]
+#                 full_embed = cur_past_sentences.mean(dim=0)
+
+#                 dataset[last_index-k]["avg_embedding"] = full_embed
+
+#             # We update the first_index
+#             first_index = i+1
+#             last_index = first_index
+
+def precompute_sentence_embeddings(dataset, tokenizer, encoder, device, batch_size=64, pooling_method="mean"):
     """
-    Update 'avg_embedding' in-place for each example in the dataset based on current encoder state.
-
-    Here we will apply an algorithm that makes sure there's no duplication of effort during embeddings generation.
-
-    Steps:
-    - Generate the sentence embeddings for all the characters
-    - Index them properly, take the average, then assign it to corresponding data point in original dataset
-
-    Some variations:
-    - Since there will be data points splitting and a character's data points might be separated between test and training dataset,
-      we need to make sure we assign them properly and by order.
-
+    Precompute embeddings for each unique (movie, character).
+    We only encode the *full* list of past sentences once, then reuse it for all rows.
+    Returns dict: (movie, character) -> tensor [num_sentences, hidden_dim]
     """
     encoder.eval()
+    char2sentences = {}
 
+    # Collect the longest past_sentences per (movie, character)
+    for row in dataset:
+        key = (row["movie"], row["character"])
+        if key not in char2sentences or len(row["past_sentences"]) > len(char2sentences[key]):
+            char2sentences[key] = row["past_sentences"]
+
+    cache = {}
     with torch.no_grad():
-        cur_char = None
-        cur_movie = None
-        first_index = 0
-        last_index = 0
-        data_length = len(dataset)
-        for i, row in enumerate(tqdm(dataset, desc="Updating char_vecs")):
-
-            cur_movie = row["movie"]
-            cur_char = row["character"]
-
-            # Check if the next character is the same as current character
-            # Also check if the next data point is not available
-            if i + 1 < data_length and dataset[i+1]["movie"] == cur_movie and dataset[i+1]["character"] == cur_char:
-                last_index += 1
-                continue
-
-            past_sentences = row.get("past_sentences", [])
-            num_past_sentences = len(past_sentences)
-
-            ### TODO: EDIT THE BELOW
-
-            if num_past_sentences == 0:
-                row["avg_embedding"] = torch.zeros(768)
-                continue
-
-            # Encode in chunks to save memory
+        for key, sentences in tqdm(char2sentences.items(), desc="Precomputing char embeddings"):
             all_embeddings = []
-            for j in range(0, num_past_sentences, batch_size):
-                batch_sentences = past_sentences[j:j + batch_size]
-                encoded = tokenizer(
-                    batch_sentences,
-                    return_tensors="pt",
-                    padding=True,
-                    truncation=True,
-                    max_length=256
-                ).to(device)
-
+            for j in range(0, len(sentences), batch_size):
+                batch = sentences[j:j+batch_size]
+                encoded = tokenizer(batch, return_tensors="pt", padding=True,
+                                    truncation=True, max_length=256).to(device)
                 outputs = encoder(**encoded)
                 last_hidden = outputs.last_hidden_state
-                if pooling_method == 'mean':
-                    attn_mask = encoded["attention_mask"].unsqueeze(-1)  # shape: (batch_size, seq_len, 1)
-                    # .clamp(min = 1e-9) prevents division by 0
+                if pooling_method == "mean":
+                    attn_mask = encoded["attention_mask"].unsqueeze(-1)
                     pooled = (last_hidden * attn_mask).sum(1) / attn_mask.sum(1).clamp(min=1e-9)
-                elif pooling_method == 'cls':
+                else:  # 'cls'
                     pooled = last_hidden[:, 0, :]
-
                 all_embeddings.append(pooled.cpu())
+            cache[key] = torch.cat(all_embeddings, dim=0)  # [num_sentences, hidden_dim]
 
-            # all_embeddings contains all sentence embeddings that we need
-            # Start the indexing logic + averaging
+    return cache
 
-            flat_embeds = torch.cat(all_embeddings, dim=0)  # Shape: (num_sentences, 768)
 
-            for k in range(num_past_sentences-1):   # We use num_past_sentences-1 because there needs to be at least 1 past sentence for each data point
-
-                # If we reach the left edge
-                # This is the case where a character data points are splited by train-test split
-                if i - k < 0:
-                    break
-
-                cur_past_sentences = flat_embeds[:len(flat_embeds) - k]
-                full_embed = cur_past_sentences.mean(dim=0)
-
-                dataset[last_index-k]["avg_embedding"] = full_embed
-
-            # We update the first_index
-            first_index = i+1
-            last_index = first_index
+def update_char_vec_embeddings(dataset, sentence_cache):
+    """
+    Use precomputed embeddings per (movie, character).
+    For each row, take the mean of the slice up to len(past_sentences).
+    """
+    for row in tqdm(dataset, desc="Updating char embeddings"):
+        key = (row["movie"], row["character"])
+        past_len = len(row["past_sentences"])
+        if past_len == 0:
+            row["avg_embedding"] = torch.zeros(768)
+            continue
+        full_embeds = sentence_cache[key]  # [num_sentences, hidden_dim]
+        row["avg_embedding"] = full_embeds[:past_len].mean(0)
 
 
 def compute_orthogonality_loss(z, strategy="off_diag"):
@@ -335,10 +385,14 @@ def train_moral_classifier(
                 eval_metrics=eval_metrics
             )
 
-        if train_n_last_layers > 0:
+        if train_n_last_layers > 0 and inject_embedding:
             print(f"\n[Epoch {epoch+1}] Recomputing char_vec embeddings...")
-            update_char_vec_embeddings(train_dataset, tokenizer, classifier.bert, device, pooling_method=injection_pooling_method)
-            update_char_vec_embeddings(val_dataset, tokenizer, classifier.bert, device, pooling_method=injection_pooling_method)
+            train_cache = precompute_sentence_embeddings(train_dataset, tokenizer, classifier.bert, device, batch_size=64, pooling_method=injection_pooling_method)
+            test_cache = precompute_sentence_embeddings(val_dataset, tokenizer, classifier.bert, device, batch_size=64, pooling_method=injection_pooling_method)
+            # update_char_vec_embeddings(train_dataset, tokenizer, classifier.bert, device)
+            # update_char_vec_embeddings(val_dataset, tokenizer, classifier.bert, device)
+            update_char_vec_embeddings(train_dataset, train_cache)
+            update_char_vec_embeddings(val_dataset, test_cache)
 
     # Restore best model
     if best_state:
