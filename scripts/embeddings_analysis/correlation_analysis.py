@@ -757,7 +757,7 @@ def recompute_embeddings(model_path, sentence_data, pooling, batch_size=1, model
 
     embeddings_dct = {}
 
-    for movie, characters in tqdm(sentence_data["sentences"].items(), desc="Processing movies"):
+    for movie, characters in tqdm(sentence_data["sentence"].items(), desc="Processing movies"):
         embeddings_dct[movie] = {}
 
         for character, sentences in tqdm(characters.items(), desc=f"Processing characters in {movie}", leave=False):
