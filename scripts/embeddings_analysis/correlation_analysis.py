@@ -1041,7 +1041,7 @@ def run_analysis(embeddings_path, output_dir, rating_data_path, sentence_data_pa
     #     save_folder_path = Path(embeddings_path).parent
 
     X = np.stack([
-        embeddings_data[movie][char].numpy()
+        embeddings_data[movie][char]
         for movie in embeddings_data
         for char in embeddings_data[movie]
     ])
