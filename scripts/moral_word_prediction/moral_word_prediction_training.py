@@ -468,7 +468,7 @@ def evaluate_mlm(model_H, dataset, tokenizer, bert_lm, use_one_hot=False, charac
 
     return results
 
-def main():
+def main(args):
     """
     Main function to train a Masked Language Model (MLM) with optional character embeddings.
     This script provides a command-line interface for training an MLM model with various configurations,
@@ -533,32 +533,6 @@ def main():
     --------------
     python moral_word_prediction_training.py --input_dir data/ --output_dir models/ --use_vae --num_epochs 10
     """
-
-    parser = argparse.ArgumentParser(description="Train MLM Model with Character Embeddings")
-
-    parser.add_argument("--input_dir", type=str, required=True, help="Directory containing the input JSON files")
-    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save the trained models and logs")
-    parser.add_argument("--use_vae", action="store_true", help="Use Variational Autoencoder for character embeddings")
-    parser.add_argument("--use_one_hot", action="store_true", help="Use one-hot encoding for character embeddings")
-    parser.add_argument("--latent_dim", type=int, default=20, help="Latent dimension for the autoencoder")
-    parser.add_argument("--alpha", type=float, default=1.0, help="Weight for cross-entropy loss")
-    parser.add_argument("--beta", type=float, default=0.01, help="Weight for orthogonality loss")
-    parser.add_argument("--num_epochs", type=int, default=5, help="Number of training epochs")
-    parser.add_argument("--batch_size", type=int, default=32, help="Batch size for training")
-    parser.add_argument("--lr_ae", type=float, default=1e-3, help="Learning rate for the autoencoder")
-    parser.add_argument("--lr_bert", type=float, default=2e-5, help="Learning rate for the BERT model")
-    parser.add_argument("--dropout_rate", type=float, default=0.1, help="Dropout rate for the autoencoder")
-    parser.add_argument("--clip_grad_norm", type=float, default=5.0, help="Gradient clipping norm value")
-    parser.add_argument("--weight_decay", type=float, default=1e-5, help="Weight decay for the optimizer")
-    parser.add_argument("--scheduler_type", type=str, default="cosine", choices=["cosine", "step", "plateau"], help="Type of learning rate scheduler")
-    parser.add_argument("--early_stopping_patience", type=int, default=3, help="Patience for early stopping")
-    parser.add_argument("--train_n_last_layers", type=int, default=0, help="Number of last layers of BERT to fine-tune")
-    parser.add_argument("--inject_embedding", action="store_true", help="Inject character embeddings into the model")
-    parser.add_argument("--pooling_method", type=str, default="mean", choices=["mean", "cls"], help="Pooling method for sentence embeddings")
-    parser.add_argument("--retrain", action="store_true", help="Retrain the model even if saved models exist")
-    parser.add_argument("--model_name", type=str, default="bert-base-uncased", help="Pretrained model name")
-
-    args = parser.parse_args()
 
     model_H_path = os.path.join(args.output_dir, "model_H.pth")
     bert_lm_path = os.path.join(args.output_dir, "bert_lm.pth")
@@ -627,4 +601,29 @@ def main():
         print("Model already exists. Use --retrain to overwrite.")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Train MLM Model with Character Embeddings")
+
+    parser.add_argument("--input_dir", type=str, required=True, help="Directory containing the input JSON files")
+    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save the trained models and logs")
+    parser.add_argument("--use_vae", action="store_true", help="Use Variational Autoencoder for character embeddings")
+    parser.add_argument("--use_one_hot", action="store_true", help="Use one-hot encoding for character embeddings")
+    parser.add_argument("--latent_dim", type=int, default=20, help="Latent dimension for the autoencoder")
+    parser.add_argument("--alpha", type=float, default=1.0, help="Weight for cross-entropy loss")
+    parser.add_argument("--beta", type=float, default=0.01, help="Weight for orthogonality loss")
+    parser.add_argument("--num_epochs", type=int, default=5, help="Number of training epochs")
+    parser.add_argument("--batch_size", type=int, default=32, help="Batch size for training")
+    parser.add_argument("--lr_ae", type=float, default=1e-3, help="Learning rate for the autoencoder")
+    parser.add_argument("--lr_bert", type=float, default=2e-5, help="Learning rate for the BERT model")
+    parser.add_argument("--dropout_rate", type=float, default=0.1, help="Dropout rate for the autoencoder")
+    parser.add_argument("--clip_grad_norm", type=float, default=5.0, help="Gradient clipping norm value")
+    parser.add_argument("--weight_decay", type=float, default=1e-5, help="Weight decay for the optimizer")
+    parser.add_argument("--scheduler_type", type=str, default="cosine", choices=["cosine", "step", "plateau"], help="Type of learning rate scheduler")
+    parser.add_argument("--early_stopping_patience", type=int, default=3, help="Patience for early stopping")
+    parser.add_argument("--train_n_last_layers", type=int, default=0, help="Number of last layers of BERT to fine-tune")
+    parser.add_argument("--inject_embedding", action="store_true", help="Inject character embeddings into the model")
+    parser.add_argument("--pooling_method", type=str, default="mean", choices=["mean", "cls"], help="Pooling method for sentence embeddings")
+    parser.add_argument("--retrain", action="store_true", help="Retrain the model even if saved models exist")
+    parser.add_argument("--model_name", type=str, default="bert-base-uncased", help="Pretrained model name")
+
+    args = parser.parse_args()
+    main(args)
