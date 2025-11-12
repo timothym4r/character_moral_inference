@@ -113,7 +113,7 @@ def data_preprocess(source_data_path, output_dir, threshold=20):
     print("Saved train/test datasets with optimized embedding reuse.")
 
 
-def main():
+def main(args):
     """
     Main function to preprocess data for moral word prediction.
 
@@ -139,12 +139,6 @@ def main():
     # - model_name (for embeddings)
     # - pooling_method (mean, cls, etc)
     # - reprocess (bool) to skip processing if files exist
-    parser = argparse.ArgumentParser(description="Preprocess data for moral word prediction")
-    parser.add_argument("--source_data_path", type=str, required=True, help="Path to the source data JSON file")
-    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save processed data")
-    parser.add_argument("--threshold", type=int, default=20, help="Minimum number of sentences per character")
-
-    args = parser.parse_args()
 
     data_preprocess(
         source_data_path=args.source_data_path,
@@ -153,4 +147,10 @@ def main():
     )
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Preprocess data for moral word prediction")
+    parser.add_argument("--source_data_path", type=str, required=True, help="Path to the source data JSON file")
+    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save processed data")
+    parser.add_argument("--threshold", type=int, default=20, help="Minimum number of sentences per character")
+
+    args = parser.parse_args()
+    main(args)
