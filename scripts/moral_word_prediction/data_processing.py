@@ -1,39 +1,60 @@
-# Import Libraries and Tools
-import pandas as pd
+import os, json, torch, random, gc, argparse
 import numpy as np
-import matplotlib.pyplot as plt
-import json
-import random
-import re
-import os
 from tqdm import tqdm
-from collections import defaultdict
+from transformers import AutoTokenizer, AutoModel
 
-from torch.optim import AdamW
-import torch
-from torch.utils.data import DataLoader, TensorDataset
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
-# Language Models
-from transformers import BertTokenizer, BertModel
+def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, pooling_method="mean"):
+    all_embeddings = []
+    for i in range(0, len(sentences), batch_size):
+        batch = sentences[i:i+batch_size]
+        with torch.no_grad():
+            encoded = tokenizer(
+                batch,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=256
+            ).to(device)
 
-# Classification Models
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-import argparse
+            outputs = model(**encoded)
+            attention_mask = encoded["attention_mask"].unsqueeze(-1)
+            last_hidden = outputs.last_hidden_state
 
-random.seed(42)
+            if pooling_method == "mean":
+                masked_embeddings = last_hidden * attention_mask
+                sum_embeddings = masked_embeddings.sum(dim=1)
+                sum_mask = attention_mask.sum(dim=1).clamp(min=1e-9)
+                sentence_embeddings = sum_embeddings / sum_mask
+            elif pooling_method == "cls":
+                sentence_embeddings = last_hidden[:, 0, :]
+            else:
+                raise ValueError(f"Unsupported pooling method: {pooling_method}")
 
-# Check for GPU
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Using device: {device}")
+            all_embeddings.append(sentence_embeddings.cpu())
 
-tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-bert_model = BertModel.from_pretrained("bert-base-uncased").to(device)
+        torch.cuda.empty_cache()
+        gc.collect()
 
-bert_model.eval()
+    return torch.cat(all_embeddings, dim=0)
 
-# Function for data pre-processing
 
-def data_preprocess(source_data_path, output_dir, threshold=20):
+def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pooling_method="mean", reprocess=False):
+    os.makedirs(output_dir, exist_ok=True)
+    train_path = os.path.join(output_dir, f"train_data_{pooling_method}.json")
+    test_path = os.path.join(output_dir, f"test_data_{pooling_method}.json")
+
+    if not reprocess and os.path.exists(train_path):
+        print(f"Found existing data in {output_dir}. Use --reprocess to regenerate.")
+        return
+
+    print("Loading model and tokenizer...")
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModel.from_pretrained(model_name).to("cuda" if torch.cuda.is_available() else "cpu")
+    model.eval()
+
+    print("Loading source data...")
     with open(source_data_path, "r") as f:
         moral_data = json.load(f)
 
@@ -41,116 +62,79 @@ def data_preprocess(source_data_path, output_dir, threshold=20):
     moral_dialogue_masked = moral_data["moral_dialogue_masked"]
     ground_truths = moral_data["ground_truths"]
 
-    train_data_100, test_data_100 = [], []
+    all_records = []
 
     for movie, characters in tqdm(moral_dialogue.items(), desc="Processing characters"):
         for character, original_sentences in characters.items():
             num_sentences = len(original_sentences)
-
-            # To make sure each character has enough sentences before later indexing
             if num_sentences < threshold:
                 continue
 
-            masked_sentences = moral_dialogue_masked[movie][character]
-            moral_words = ground_truths[movie][character]
+            try:
+                embeddings = get_sentence_embeddings(
+                    original_sentences, model, tokenizer, model.device, pooling_method=pooling_method
+                )
 
-            # Step 1: Encode all sentences once
-            with torch.no_grad():
-                encoded = tokenizer(
-                    original_sentences,
-                    return_tensors="pt",
-                    padding=True,
-                    truncation=True,
-                    max_length=256
-                ).to(device)
+                masked_sentences = moral_dialogue_masked[movie][character]
+                moral_words = ground_truths[movie][character]
 
-                output = bert_model(**encoded)
-                sentence_embeddings = output.last_hidden_state.mean(dim=1).cpu()  # shape: [num_sentences, 768]
+                for idx in range(threshold, num_sentences):
+                    past_embeds = embeddings[:idx]
+                    avg_embedding = past_embeds.mean(dim=0)
 
-            # second_half_start = num_sentences // 2
-            second_half_start = threshold
+                    record = {
+                        "movie": movie,
+                        "character": character,
+                        "masked_sentence": masked_sentences[idx],
+                        "target_word": moral_words[idx],
+                        "avg_embedding": avg_embedding.tolist(),
+                        "past_sentences": original_sentences[:idx],
+                        "history_len": idx
+                    }
+                    all_records.append(record)
 
-            char_data_rows = []
+            except RuntimeError as e:
+                print(f"Skipping {character} from {movie} due to memory error: {e}")
+                torch.cuda.empty_cache()
+                gc.collect()
 
-            for idx in range(second_half_start, num_sentences):
-                if idx == 0:
-                    continue  # can't average anything before index 0
+    # Split train/test once
+    random.shuffle(all_records)
+    split_idx = int(0.7 * len(all_records))
+    train_data, test_data = all_records[:split_idx], all_records[split_idx:]
 
-                # Step 2: Use already-computed embeddings
-                past_embeds = sentence_embeddings[:idx]
-                avg_embedding = past_embeds.mean(dim=0)
+    with open(train_path, "w") as f:
+        json.dump(train_data, f)
+    with open(test_path, "w") as f:
+        json.dump(test_data, f)
 
-                record = {
-                    "character": character,
-                    "avg_embedding": avg_embedding.tolist(),
-                    "past_sentences": original_sentences[:idx],
-                    "masked_sentence": masked_sentences[idx],
-                    "target_word": moral_words[idx],
-                    # Keep track of the movie
-                    "movie": movie
-                }
-
-                char_data_rows.append(record)
-
-            random.shuffle(char_data_rows)
-
-            test_start_idx = int(0.7 * len(char_data_rows))
-
-            rows_for_training = char_data_rows[:test_start_idx]
-            rows_for_testing = char_data_rows[test_start_idx:]
-
-            train_data_100.extend(rows_for_training)
-            test_data_100.extend(rows_for_testing)
-
-    os.makedirs(output_dir, exist_ok=True)
-
-    with open(os.path.join(output_dir, f"train_data_{threshold}.json"), "w") as f:
-        json.dump(train_data_100, f)
-
-    with open(os.path.join(output_dir, f"test_data_{threshold}.json"), "w") as f:
-        json.dump(test_data_100, f)
-
-    print("Saved train/test datasets with optimized embedding reuse.")
+    print(f"Saved train/test data at {output_dir} ({len(train_data)} train / {len(test_data)} test).")
 
 
 def main(args):
-    """
-    Main function to preprocess data for moral word prediction.
-
-    This function serves as the entry point for the data preprocessing pipeline.
-    It takes in command-line arguments, extracts the necessary parameters, and
-    invokes the `data_preprocess` function to process the data accordingly.
-
-    Args:
-        None
-
-    Returns:
-        None
-
-    Example:
-        To run the function, use the following command-line arguments:
-        ```
-        python data_processing.py --source_data_path "/path/to/source_data.json" \
-                                    --output_dir "/path/to/output_dir" \
-                                    --threshold 20
-        ```
-    """
-    # TODO: Add more arguments:
-    # - model_name (for embeddings)
-    # - pooling_method (mean, cls, etc)
-    # - reprocess (bool) to skip processing if files exist
 
     data_preprocess(
+        model_name=args.model_name,
         source_data_path=args.source_data_path,
         output_dir=args.output_dir,
-        threshold=args.threshold
+        threshold=args.threshold,
+        pooling_method=args.pooling_method,
+        reprocess=args.reprocess
     )
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Preprocess data for moral word prediction")
-    parser.add_argument("--source_data_path", type=str, required=True, help="Path to the source data JSON file")
-    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save processed data")
-    parser.add_argument("--threshold", type=int, default=20, help="Minimum number of sentences per character")
 
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Preprocess data for moral word prediction")
+    parser.add_argument("--model_name", type=str, required=True, help="Hugging Face model name")
+    parser.add_argument("--source_data_path", type=str, required=True, help="Path to source JSON file")
+    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save processed data")
+    parser.add_argument("--threshold", type=int, default=20, help="Minimum sentences per character")
+    parser.add_argument("--pooling_method", type=str, default="mean", choices=["mean", "cls"], help="Pooling method")
+    parser.add_argument("--reprocess", action="store_true", help="Force reprocessing even if files exist")
     args = parser.parse_args()
+
+    print("Starting preprocessing for moral word prediction...")
     main(args)
+    print("Preprocessing completed.")
+
