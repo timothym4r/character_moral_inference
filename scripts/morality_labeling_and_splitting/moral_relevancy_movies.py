@@ -47,7 +47,7 @@ for movie in selected_movies:
         for sentence in sentences:
             flattened_data.append((movie, character, sentence))
 
-print(f"✅ Randomly selected {n_movies} movies:")
+print(f"Randomly selected {n_movies} movies:")
 for movie in selected_movies:
     print(f"- {movie}")
 
@@ -125,4 +125,4 @@ filtered_dict = {"moral_dialogue": filtered_data}
 with open('../data/moral_data_by_movies_filtered_4o_mini.json', 'w') as f:
     json.dump(filtered_dict, f, indent=4)
 
-print(f"✅ Filtered data saved to '../data/moral_data_by_movies_filtered.json'")
+print(f"Filtered data saved to '../data/moral_data_by_movies_filtered.json'")

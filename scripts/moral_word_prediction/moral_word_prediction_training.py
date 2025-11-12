@@ -1,5 +1,4 @@
 # Import Libraries and Tools
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -186,10 +185,10 @@ def train_mlm_model(
     lr_ae=1e-3, lr_bert=2e-5,
     dropout_rate=0.1, clip_grad_norm=5.0, weight_decay=1e-5, pooling_method = "mean",
     scheduler_type="cosine", early_stopping_patience=3,
-    train_n_last_layers=0, log_path=None, inject_embedding=True
+    train_n_last_layers=0, log_path=None, inject_embedding=True, model_name =  "bert-base-uncased"
 ):
-    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-    bert_lm = BertForMaskedLM.from_pretrained("bert-base-uncased")
+    tokenizer = BertTokenizer.from_pretrained(model_name)
+    bert_lm = BertForMaskedLM.from_pretrained(model_name)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     bert_lm.to(device)
 
@@ -234,6 +233,7 @@ def train_mlm_model(
         if embedding_params:
             optim_groups.insert(1, {"params": embedding_params, "lr": lr_ae})
 
+    # Optimizer
     optimizer = AdamW(optim_groups, weight_decay=weight_decay)
 
     # Dataloader
@@ -528,6 +528,7 @@ def main():
     - The script assumes the input directory contains `train_data.json` and `test_data.json`.
     - Logs are saved in CSV format in the `logs` subdirectory of the output directory.
     - If the model already exists and --retrain is not specified, training is skipped.
+    
     Example Usage:
     --------------
     python moral_word_prediction_training.py --input_dir data/ --output_dir models/ --use_vae --num_epochs 10
@@ -611,7 +612,8 @@ def main():
             early_stopping_patience=args.early_stopping_patience,
             train_n_last_layers=args.train_n_last_layers,
             log_path=log_path,
-            inject_embedding=args.inject_embedding
+            inject_embedding=args.inject_embedding,
+            model_name=args.model_name
         )
 
         if model_H:
@@ -626,5 +628,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    

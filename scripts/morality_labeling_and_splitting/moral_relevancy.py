@@ -26,7 +26,7 @@ n_sentences = 100
 random.shuffle(flattened_data)
 flattened_data = flattened_data[:n_sentences]
 
-print(f"✅ Sampled {n_sentences} random sentences.")
+print(f"Sampled {n_sentences} random sentences.")
 
 # Step 4: Function to evaluate moral relevance
 def check_moral_relevance(sentences, model="gpt-4o-mini", batch_size=5):
@@ -98,4 +98,4 @@ filtered_dict = {"moral_dialogue": filtered_data}
 with open('../data/moral_data_filtered.json', 'w') as f:
     json.dump(filtered_dict, f, indent=4)
 
-print(f"✅ Filtered data saved to '../data/moral_data_filtered.json'")
+print(f"Filtered data saved to '../data/moral_data_filtered.json'")
