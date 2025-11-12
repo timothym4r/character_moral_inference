@@ -562,15 +562,31 @@ def main(args):
 
         init_csv(log_path)
 
-        train_dataset = MoralDataset(train_data, tokenizer=tokenizer, use_one_hot=args.use_one_hot)
-        val_dataset = MoralDataset(test_data, tokenizer=tokenizer, use_one_hot=args.use_one_hot)
+        char2id = None
+        if args.use_one_hot:
+            # Build mapping of unique characters
+            all_characters = set()
+            for split in [train_data, test_data]:
+                for row in split:
+                    key = f"{row['movie']}_{row['character']}"
+                    all_characters.add(key)
+
+            char2id = {char: idx for idx, char in enumerate(sorted(all_characters))}
+            id2char = {v: k for k, v in char2id.items()}
+            print(f"Loaded {len(char2id)} unique characters.")
+            with open(os.path.join(args.output_dir, "char2id.json"), "w") as f:
+                json.dump(char2id, f, indent=2)
+
+
+        train_dataset = MoralDataset(train_data, tokenizer=tokenizer, use_one_hot=args.use_one_hot, char2id=char2id)
+        val_dataset = MoralDataset(test_data, tokenizer=tokenizer, use_one_hot=args.use_one_hot, char2id=char2id)
 
         model_H, character_embedding, bert_lm = train_mlm_model(
             train_dataset=train_dataset,
             val_dataset=val_dataset,
             use_vae=args.use_vae,
             use_one_hot=args.use_one_hot,
-            char2id=None,
+            char2id=char2id,
             latent_dim=args.latent_dim,
             alpha=args.alpha,
             beta=args.beta,

@@ -47,8 +47,8 @@ class MoralDataset(Dataset):
         }
 
         if self.use_one_hot:
-            row_character_name = row["movie"] + "_" + row["character"]
-            result["character_id"] = torch.tensor(self.char2id[row_character_name], dtype=torch.long)
+            key = f"{row['movie']}_{row['character']}"
+            result["character_id"] = torch.tensor(self.char2id[key], dtype=torch.long)
         else:
             result["avg_embedding"] = torch.tensor(row["avg_embedding"], dtype=torch.float)
 
