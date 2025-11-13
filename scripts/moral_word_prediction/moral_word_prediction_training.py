@@ -551,10 +551,10 @@ def main(args):
             for arg, value in vars(args).items():
                 f.write(f"{arg}: {value}\n")
 
-        with open(os.path.join(args.input_dir, f"train_data_{args.pooling_method}.json"), "r") as f:
+        with open(os.path.join(args.input_dir, f"train_data_{args.pooling_method}_{args.threshold}.json"), "r") as f:
             train_data = json.load(f)
 
-        with open(os.path.join(args.input_dir, f"test_data_{args.pooling_method}.json"), "r") as f:
+        with open(os.path.join(args.input_dir, f"test_data_{args.pooling_method}_{args.threshold}.json"), "r") as f:
             test_data = json.load(f)
         
         train_data = filter_maskless_entries(train_data, tokenizer)
