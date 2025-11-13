@@ -42,8 +42,8 @@ def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, 
 
 def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pooling_method="mean", reprocess=False):
     os.makedirs(output_dir, exist_ok=True)
-    train_path = os.path.join(output_dir, f"train_data_{pooling_method}.json")
-    test_path = os.path.join(output_dir, f"test_data_{pooling_method}.json")
+    train_path = os.path.join(output_dir, f"train_data_{pooling_method}_{threshold}.json")
+    test_path = os.path.join(output_dir, f"test_data_{pooling_method}_{threshold}.json")
 
     if not reprocess and os.path.exists(train_path):
         print(f"Found existing data in {output_dir}. Use --reprocess to regenerate.")
@@ -78,7 +78,7 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pool
                 masked_sentences = moral_dialogue_masked[movie][character]
                 moral_words = ground_truths[movie][character]
 
-                for idx in range(threshold, num_sentences):
+                for idx in range(threshold//2, num_sentences):
                     past_embeds = embeddings[:idx]
                     avg_embedding = past_embeds.mean(dim=0)
 
