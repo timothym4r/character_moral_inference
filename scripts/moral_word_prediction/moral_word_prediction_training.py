@@ -20,6 +20,10 @@ import torch.nn.functional as F
 from transformers import BertTokenizer, BertForMaskedLM, BertModel
 from transformers import get_scheduler
 
+from transformers import AutoModelForMaskedLM, AutoTokenizer
+
+
+
 # Classification Models
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
@@ -187,8 +191,10 @@ def train_mlm_model(
     scheduler_type="cosine", early_stopping_patience=3,
     train_n_last_layers=0, log_path=None, inject_embedding=True, model_name =  "bert-base-uncased"
 ):
-    tokenizer = BertTokenizer.from_pretrained(model_name)
-    bert_lm = BertForMaskedLM.from_pretrained(model_name)
+    # To make it model-agnostic
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    bert_lm = AutoModelForMaskedLM.from_pretrained(model_name)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     bert_lm.to(device)
 
