@@ -22,8 +22,6 @@ from transformers import get_scheduler
 
 from transformers import AutoModelForMaskedLM, AutoTokenizer
 
-
-
 # Classification Models
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
@@ -189,12 +187,30 @@ def train_mlm_model(
     lr_ae=1e-3, lr_bert=2e-5,
     dropout_rate=0.1, clip_grad_norm=5.0, weight_decay=1e-5, pooling_method = "mean",
     scheduler_type="cosine", early_stopping_patience=3,
-    train_n_last_layers=0, log_path=None, inject_embedding=True, model_name =  "bert-base-uncased"
+    train_n_last_layers=0, log_path=None, inject_embedding=True, model_name =  "bert-base-uncased", eval_only=False
 ):
-    # To make it model-agnostic
+    # Load pretrained model
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    bert_lm = AutoModelForMaskedLM.from_pretrained(model_name)
+    bert_lm = AutoModelForMaskedLM.from_pretrained(model_name).to("cuda" if torch.cuda.is_available() else "cpu")
 
+    if eval_only:
+        print(f"Running evaluation-only mode for {model_name} (no fine-tuning)...")
+        eval_metrics = evaluate_mlm(
+            model_H=None,
+            dataset=val_dataset,
+            tokenizer=tokenizer,
+            bert_lm=bert_lm,
+            use_one_hot=False,
+            character_embedding=None,
+            inject_embedding=False
+        )
+        print(f"[Baseline Eval] CE={eval_metrics['cross_entropy']:.4f}, "
+              f"PPL={eval_metrics['perplexity']:.4f}, "
+              f"Acc@1={eval_metrics['accuracy@1']:.4f}, "
+              f"Acc@5={eval_metrics['accuracy@5']:.4f}, "
+              f"Acc@10={eval_metrics['accuracy@10']:.4f}")
+        return None, None, bert_lm  # nothing trained
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     bert_lm.to(device)
 
@@ -609,7 +625,8 @@ def main(args):
             train_n_last_layers=args.train_n_last_layers,
             log_path=log_path,
             inject_embedding=args.inject_embedding,
-            model_name=args.model_name
+            model_name=args.model_name,
+            eval_only=args.eval_only
         )
 
         if model_H:
@@ -646,6 +663,7 @@ if __name__ == "__main__":
     parser.add_argument("--pooling_method", type=str, default="mean", choices=["mean", "cls"], help="Pooling method for sentence embeddings")
     parser.add_argument("--retrain", action="store_true", help="Retrain the model even if saved models exist")
     parser.add_argument("--model_name", type=str, default="bert-base-uncased", help="Pretrained model name")
+    parser.add_argument("--eval_only", action="store_true", help="Run evaluation only without training")
 
     args = parser.parse_args()
     main(args)
