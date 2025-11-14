@@ -49,7 +49,6 @@ import argparse
 def main(args):
     # If the `--regenerate` flag is not set and the file exists, we will not regenerate embeddings
     if not args.regenerate and args.output_dir:
-        import os
         # Check if the output directory exists and contains the embeddings file
         if os.path.exists(os.path.join(args.output_dir, "bert_embeddings.pkl")) and os.path.exists(os.path.join(args.output_dir, "roberta_embeddings.pkl")):
             print("Embeddings already exist. Use --regenerate to overwrite.")
