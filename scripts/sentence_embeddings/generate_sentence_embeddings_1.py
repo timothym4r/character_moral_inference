@@ -86,10 +86,14 @@ def main(args):
     with open(data_file_path, "r") as f:
         data = json.load(f)
     
-    if "sentence" not in data:
-        sentence_label = "sentences"
-    else:
+    if "sentence" in data:
         sentence_label = "sentence"
+    elif "sentences" in data:
+        sentence_label = "sentences"
+    elif "moral_dialogue" in data:
+        sentence_label = "moral_dialogue"  # Default label for mfd word prediction dataset
+    else:
+        raise ValueError("No valid sentence label found in the data. Please check the data format.")
 
     # TODO: Add code to support for multiple models if needed
     # Generate embeddings for each model 
