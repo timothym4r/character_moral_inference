@@ -39,8 +39,7 @@ def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, 
 
     return torch.cat(all_embeddings, dim=0)
 
-
-def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pooling_method="mean", reprocess=False):
+def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pooling_method="mean", reprocess=False, mask_prediction_index=None):
     os.makedirs(output_dir, exist_ok=True)
     train_path = os.path.join(output_dir, f"train_data_{pooling_method}_{threshold}.json")
     test_path = os.path.join(output_dir, f"test_data_{pooling_method}_{threshold}.json")
@@ -79,6 +78,9 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pool
                 moral_words = ground_truths[movie][character]
 
                 for idx in range(threshold//2, num_sentences):
+                    if mask_prediction_index is not None and mask_prediction_index[movie][character][idx] == 0:
+                        continue
+
                     past_embeds = embeddings[:idx]
                     avg_embedding = past_embeds.mean(dim=0)
 
@@ -112,16 +114,15 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pool
 
 
 def main(args):
-
     data_preprocess(
         model_name=args.model_name,
         source_data_path=args.source_data_path,
         output_dir=args.output_dir,
         threshold=args.threshold,
         pooling_method=args.pooling_method,
-        reprocess=args.reprocess
+        reprocess=args.reprocess,
+        mask_prediction_index=args.mask_prediction_index
     )
-
 
 if __name__ == "__main__":
 
@@ -132,6 +133,7 @@ if __name__ == "__main__":
     parser.add_argument("--threshold", type=int, default=20, help="Minimum sentences per character")
     parser.add_argument("--pooling_method", type=str, default="mean", choices=["mean", "cls"], help="Pooling method")
     parser.add_argument("--reprocess", action="store_true", help="Force reprocessing even if files exist")
+    parser.add_argument("--mask_prediction_index", type=str, default=None, help="Path to mask prediction index JSON file")
     args = parser.parse_args()
 
     print("Starting preprocessing for moral word prediction...")

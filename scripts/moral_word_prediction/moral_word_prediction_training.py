@@ -47,11 +47,11 @@ def filter_maskless_entries(data, tokenizer, max_length=512):
     return cleaned
 
 
-def precompute_sentence_embeddings(dataset, tokenizer, encoder, device, batch_size=64, pooling_method="mean"):
+def precompute_sentence_embeddings(dataset, tokenizer, encoder, device, batch_size=64, pooling_method="mean", mask_index = None):
     """
     Precompute embeddings for each unique (movie, character).
     We only encode the *full* list of past sentences once, then reuse it for all rows.
-    Returns dict: (movie, character) -> tensor [num_sentences, hidden_dim]
+    Returns dict: (movie, character) -> tensor [num_sentences, embed_dim]
     """
     encoder.eval()
     char2sentences = {}
@@ -96,6 +96,7 @@ def update_char_vec_embeddings(dataset, sentence_cache):
             continue
         full_embeds = sentence_cache[key]  # [num_sentences, hidden_dim]
         row["avg_embedding"] = full_embeds[:past_len].mean(0)
+
 
 def init_csv(log_path):
     os.makedirs(os.path.dirname(log_path), exist_ok=True)  # Create parent dirs if needed
