@@ -123,11 +123,6 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pool
 
 def main(args):
 
-    mask_prediction_index = None
-    if args.mask_prediction_index:
-        with open(args.mask_prediction_index, "r") as f:
-            mask_prediction_index = json.load(f)
-
     data_preprocess(
         model_name=args.model_name,
         source_data_path=args.source_data_path,
