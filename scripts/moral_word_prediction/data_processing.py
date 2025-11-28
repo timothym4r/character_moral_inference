@@ -90,7 +90,11 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pool
                         continue
 
                     past_embeds = embeddings[:idx]
-                    avg_embedding = past_embeds.mean(dim=0)
+                    # If we directly take the mean of empty tensor, it will be NaN and raise an error later
+                    if past_embeds.size(0) == 0:
+                        avg_embedding = torch.zeros(embeddings.size(1))
+                    else:
+                        avg_embedding = past_embeds.mean(dim=0)
 
                     record = {
                         "movie": movie,
