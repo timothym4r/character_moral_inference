@@ -215,6 +215,14 @@ def train_mlm_model(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     bert_lm.to(device)
 
+    if hasattr(bert_lm, "bert"):
+        encoder = bert_lm.bert
+    elif hasattr(bert_lm, "roberta"):
+        encoder = bert_lm.roberta
+    else:
+        raise ValueError("Unsupported architecture")
+
+
     # Freeze all params first
     for name, param in bert_lm.named_parameters():
         param.requires_grad = False
@@ -574,11 +582,18 @@ def main(args):
             for arg, value in vars(args).items():
                 f.write(f"{arg}: {value}\n")
 
-        with open(os.path.join(args.input_dir, f"train_data_{args.pooling_method}_20.json"), "r") as f:
-            train_data = json.load(f)
+        if args.sentence_mask_type is not None:
+            with open(os.path.join(args.input_dir, f"train_data_{args.pooling_method}_{args.threshold}_{args.sentence_mask_type}.json"), "r") as f:
+                train_data = json.load(f)
 
-        with open(os.path.join(args.input_dir, f"test_data_{args.pooling_method}_20.json"), "r") as f:
-            test_data = json.load(f)
+            with open(os.path.join(args.input_dir, f"test_data_{args.pooling_method}_{args.threshold}_{args.sentence_mask_type}.json"), "r") as f:
+                test_data = json.load(f)
+        else:
+            with open(os.path.join(args.input_dir, f"train_data_{args.pooling_method}_{args.threshold}.json"), "r") as f:
+                train_data = json.load(f)
+
+            with open(os.path.join(args.input_dir, f"test_data_{args.pooling_method}_{args.threshold}.json"), "r") as f:
+                test_data = json.load(f)
         
         train_data = filter_maskless_entries(train_data, tokenizer)
         test_data = filter_maskless_entries(test_data, tokenizer)
@@ -665,6 +680,8 @@ if __name__ == "__main__":
     parser.add_argument("--retrain", action="store_true", help="Retrain the model even if saved models exist")
     parser.add_argument("--model_name", type=str, default="bert-base-uncased", help="Pretrained model name")
     parser.add_argument("--eval_only", action="store_true", help="Run evaluation only without training")
+    parser.add_argument("--sentence_mask_type", type=str, default=None, help="Masking type")
+    parser.add_argument("--threshold", type=int, default=20, help="Minimum sentences per character")
 
     args = parser.parse_args()
     main(args)

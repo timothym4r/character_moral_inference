@@ -39,10 +39,15 @@ def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, 
 
     return torch.cat(all_embeddings, dim=0)
 
-def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pooling_method="mean", reprocess=False, mask_prediction_index=None):
+def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pooling_method="mean", reprocess=False, sentence_mask_type = None):
     os.makedirs(output_dir, exist_ok=True)
-    train_path = os.path.join(output_dir, f"train_data_{pooling_method}_{threshold}.json")
-    test_path = os.path.join(output_dir, f"test_data_{pooling_method}_{threshold}.json")
+
+    if sentence_mask_type is not None:
+        train_path = os.path.join(output_dir, f"train_data_{pooling_method}_{threshold}_{sentence_mask_type}.json")  # sentence_mask_type can be "moral_word" or "all"
+        test_path = os.path.join(output_dir, f"test_data_{pooling_method}_{threshold}_{sentence_mask_type}.json")
+    else:
+        train_path = os.path.join(output_dir, f"train_data_{pooling_method}_{threshold}.json")
+        test_path = os.path.join(output_dir, f"test_data_{pooling_method}_{threshold}.json")
 
     if not reprocess and os.path.exists(train_path):
         print(f"Found existing data in {output_dir}. Use --reprocess to regenerate.")
@@ -61,6 +66,9 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pool
     moral_dialogue_masked = moral_data["moral_dialogue_masked"]
     ground_truths = moral_data["ground_truths"]
 
+    if sentence_mask_type is not None:
+        mask_prediction_index = moral_data["moral_label"]
+
     all_records = []
 
     for movie, characters in tqdm(moral_dialogue.items(), desc="Processing characters"):
@@ -78,7 +86,7 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pool
                 moral_words = ground_truths[movie][character]
 
                 for idx in range(threshold, num_sentences):
-                    if mask_prediction_index is not None and mask_prediction_index[movie][character][idx] == 0:
+                    if sentence_mask_type is not None and mask_prediction_index[movie][character][idx] == "No":
                         continue
 
                     past_embeds = embeddings[:idx]
@@ -127,7 +135,7 @@ def main(args):
         threshold=args.threshold,
         pooling_method=args.pooling_method,
         reprocess=args.reprocess,
-        mask_prediction_index=mask_prediction_index
+        sentence_mask_type=args.sentence_mask_type
     )
 
 if __name__ == "__main__":
@@ -139,7 +147,7 @@ if __name__ == "__main__":
     parser.add_argument("--threshold", type=int, default=20, help="Minimum sentences per character")
     parser.add_argument("--pooling_method", type=str, default="mean", choices=["mean", "cls"], help="Pooling method")
     parser.add_argument("--reprocess", action="store_true", help="Force reprocessing even if files exist")
-    parser.add_argument("--mask_prediction_index", type=str, default=None, help="Path to mask prediction index JSON file")
+    parser.add_argument("--sentence_mask_type", type=str, default=None, help="Type of sentence masking used ('moral_word' or 'all')")
     args = parser.parse_args()
 
     print("Starting preprocessing for moral word prediction...")
