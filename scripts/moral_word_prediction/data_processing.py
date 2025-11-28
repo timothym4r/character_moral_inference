@@ -114,6 +114,12 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pool
 
 
 def main(args):
+
+    mask_prediction_index = None
+    if args.mask_prediction_index:
+        with open(args.mask_prediction_index, "r") as f:
+            mask_prediction_index = json.load(f)
+
     data_preprocess(
         model_name=args.model_name,
         source_data_path=args.source_data_path,
@@ -121,7 +127,7 @@ def main(args):
         threshold=args.threshold,
         pooling_method=args.pooling_method,
         reprocess=args.reprocess,
-        mask_prediction_index=args.mask_prediction_index
+        mask_prediction_index=mask_prediction_index
     )
 
 if __name__ == "__main__":
