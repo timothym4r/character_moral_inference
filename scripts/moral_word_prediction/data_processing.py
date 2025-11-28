@@ -77,7 +77,7 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pool
                 masked_sentences = moral_dialogue_masked[movie][character]
                 moral_words = ground_truths[movie][character]
 
-                for idx in range(threshold//2, num_sentences):
+                for idx in range(threshold, num_sentences):
                     if mask_prediction_index is not None and mask_prediction_index[movie][character][idx] == 0:
                         continue
 
