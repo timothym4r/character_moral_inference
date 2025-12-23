@@ -138,7 +138,6 @@ def main(args):
     )
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="Preprocess data for moral word prediction")
     parser.add_argument("--model_name", type=str, required=True, help="Hugging Face model name")
     parser.add_argument("--source_data_path", type=str, required=True, help="Path to source JSON file")

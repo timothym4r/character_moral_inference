@@ -222,7 +222,6 @@ def train_mlm_model(
     else:
         raise ValueError("Unsupported architecture")
 
-
     # Freeze all params first
     for name, param in bert_lm.named_parameters():
         param.requires_grad = False
