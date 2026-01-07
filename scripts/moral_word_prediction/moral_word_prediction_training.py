@@ -181,6 +181,44 @@ def custom_collate_fn(batch):
 
     return out
 
+def get_lm_head(model):
+    if hasattr(model, "cls"):
+        return model.cls          # BERT
+    if hasattr(model, "lm_head"):
+        return model.lm_head      # RoBERTa
+    raise ValueError("Unsupported model: no cls or lm_head found.")
+
+def freeze_all_params(model):
+    for p in model.parameters():
+        p.requires_grad = False
+
+def unfreeze_last_n_transformer_layers(model, n_last: int):
+    """
+    Unfreeze last n_last transformer blocks in the base model (bert/roberta/...).
+    Works for BERT and RoBERTa MLM models from HF.
+    """
+    if n_last <= 0:
+        return
+
+    prefix = model.base_model_prefix  # "bert" or "roberta"
+    n_layers = model.config.num_hidden_layers
+    start = max(0, n_layers - n_last)
+
+    for name, p in model.named_parameters():
+        # examples:
+        # bert.encoder.layer.11.attention...
+        # roberta.encoder.layer.11.attention...
+        if name.startswith(f"{prefix}.encoder.layer."):
+            # pick layer id from the name
+            # name like "{prefix}.encoder.layer.{i}...."
+            parts = name.split(".")
+            # parts: [prefix, "encoder", "layer", "{i}", ...]
+            if len(parts) > 3 and parts[3].isdigit():
+                layer_id = int(parts[3])
+                if layer_id >= start:
+                    p.requires_grad = True
+
+
 def train_mlm_model(
     train_dataset, val_dataset,
     use_vae=False, use_one_hot=False, char2id=None,
@@ -231,11 +269,13 @@ def train_mlm_model(
         for name, param in bert_lm.named_parameters():
             if any(f"encoder.layer.{i}" in name for i in range(12-train_n_last_layers, 12)):
                 param.requires_grad = True
-        # also allow cls head
-    for name, param in bert_lm.cls.named_parameters():
-        param.requires_grad = True
 
-    # H-module
+    # also allow cls/lm_head layer to be trained
+    lm_head = get_lm_head(bert_lm)
+    for _, p in lm_head.named_parameters():
+        p.requires_grad = True
+
+    ### H-module
     # NOTE: VAE might be added later
     if use_vae:
         raise NotImplementedError("VAE mode is not yet supported.")
@@ -317,18 +357,22 @@ def train_mlm_model(
                     recon_vec, z = model_H(char_vec)
                     kl_div = 0
 
-                requires_grad_bert = any(p.requires_grad for p in bert_lm.bert.parameters())
+                requires_grad_bert = any(p.requires_grad for p in encoder.parameters())
                 if requires_grad_bert:
-                    hidden = bert_lm.bert(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
+                    hidden = encoder(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
                 else:
                     with torch.no_grad():
-                        hidden = bert_lm.bert(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
+                        hidden = encoder(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
 
                 # inject
                 for i, mi in enumerate(mask_index):
                     hidden[i, mi, :] += recon_vec[i]
 
-                logits = bert_lm.cls(hidden)
+                if hasattr(bert_lm, "bert"):
+                    logits = bert_lm.cls(hidden)
+                elif hasattr(bert_lm, "roberta"):
+                    logits = bert_lm.lm_head(hidden)
+
                 mask_logits = torch.stack([logits[i, mi] for i, mi in enumerate(mask_index)])
 
                 # losses
@@ -386,10 +430,10 @@ def train_mlm_model(
         if train_n_last_layers > 0:
             print(f"[Epoch {epoch+1}] Recomputing sentence embeddings for character vectors...")
             train_cache = precompute_sentence_embeddings(
-                train_dataset, tokenizer, bert_lm.bert, device, batch_size=64, pooling_method=pooling_method
+                train_dataset, tokenizer, encoder, device, batch_size=64, pooling_method=pooling_method
             )
             val_cache = precompute_sentence_embeddings(
-                val_dataset, tokenizer, bert_lm.bert, device, batch_size=64, pooling_method=pooling_method
+                val_dataset, tokenizer, encoder, device, batch_size=64, pooling_method=pooling_method
             )
             update_char_vec_embeddings(train_dataset, train_cache)
             update_char_vec_embeddings(val_dataset, val_cache)
@@ -471,7 +515,7 @@ def evaluate_mlm(model_H, dataset, tokenizer, bert_lm, use_one_hot=False, charac
                 char_vec = batch["avg_embedding"].to(device)
 
             if inject_embedding:
-                recon_vec, *_ = model_H(char_vec)
+                recon_vec, z = model_H(char_vec)
                 hidden = bert_lm.bert(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
                 for i, mi in enumerate(mask_index):
                     hidden[i, mi, :] += recon_vec[i]
@@ -573,7 +617,7 @@ def main(args):
         for arg, value in vars(args).items():
             f.write(f"{arg}: {value}\n")
 
-    tokenizer = BertTokenizer.from_pretrained(args.model_name)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name, use_fast=True)
 
     if args.retrain or not (os.path.exists(model_H_path) and os.path.exists(bert_lm_path)):
         os.makedirs(args.output_dir, exist_ok=True)
