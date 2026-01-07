@@ -218,7 +218,6 @@ def unfreeze_last_n_transformer_layers(model, n_last: int):
                 if layer_id >= start:
                     p.requires_grad = True
 
-
 def train_mlm_model(
     train_dataset, val_dataset,
     use_vae=False, use_one_hot=False, char2id=None,
@@ -261,16 +260,18 @@ def train_mlm_model(
         raise ValueError("Unsupported architecture")
 
     # Freeze all params first
-    for name, param in bert_lm.named_parameters():
-        param.requires_grad = False
+    freeze_all_params(bert_lm)
+    # for name, param in bert_lm.named_parameters():
+    #     param.requires_grad = False
 
     # Unfreeze the last n transformer layers
-    if train_n_last_layers > 0:
-        for name, param in bert_lm.named_parameters():
-            if any(f"encoder.layer.{i}" in name for i in range(12-train_n_last_layers, 12)):
-                param.requires_grad = True
+    unfreeze_last_n_transformer_layers(bert_lm, train_n_last_layers)
+    # if train_n_last_layers > 0:
+    #     for name, param in bert_lm.named_parameters():
+    #         if any(f"encoder.layer.{i}" in name for i in range(12-train_n_last_layers, 12)):
+    #             param.requires_grad = True
 
-    # also allow cls/lm_head layer to be trained
+    # Allow cls/lm_head layer being trained
     lm_head = get_lm_head(bert_lm)
     for _, p in lm_head.named_parameters():
         p.requires_grad = True
@@ -368,10 +369,8 @@ def train_mlm_model(
                 for i, mi in enumerate(mask_index):
                     hidden[i, mi, :] += recon_vec[i]
 
-                if hasattr(bert_lm, "bert"):
-                    logits = bert_lm.cls(hidden)
-                elif hasattr(bert_lm, "roberta"):
-                    logits = bert_lm.lm_head(hidden)
+                lm_head = get_lm_head(bert_lm)
+                logits = lm_head(hidden)
 
                 mask_logits = torch.stack([logits[i, mi] for i, mi in enumerate(mask_index)])
 
@@ -500,6 +499,12 @@ def evaluate_mlm(model_H, dataset, tokenizer, bert_lm, use_one_hot=False, charac
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, collate_fn=custom_collate_fn)
     topk_hits = {1: 0, 5: 0, 10: 0}
     total, total_ce_loss = 0, 0
+    
+    # Selecting encoder layer
+    if hasattr(bert_lm, "bert"):
+        encoder = bert_lm.bert
+    elif hasattr(bert_lm, "roberta"):
+        encoder = bert_lm.roberta
 
     with torch.no_grad():
         for batch in loader:
@@ -516,10 +521,12 @@ def evaluate_mlm(model_H, dataset, tokenizer, bert_lm, use_one_hot=False, charac
 
             if inject_embedding:
                 recon_vec, z = model_H(char_vec)
-                hidden = bert_lm.bert(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
+                hidden = encoder(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
                 for i, mi in enumerate(mask_index):
                     hidden[i, mi, :] += recon_vec[i]
-                logits = bert_lm.cls(hidden)
+                lm_head = get_lm_head(bert_lm)
+                logits = lm_head(hidden)
+                # logits = bert_lm.cls(hidden)
             else:
                 logits = bert_lm(input_ids=input_ids, attention_mask=attention_mask).logits
 
