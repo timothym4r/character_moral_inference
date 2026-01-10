@@ -17,7 +17,6 @@ from torch.utils.data import DataLoader, TensorDataset
 import torch.nn.functional as F
 
 # Language Models
-from transformers import BertTokenizer, BertForMaskedLM, BertModel
 from transformers import get_scheduler
 
 from transformers import AutoModelForMaskedLM, AutoTokenizer
@@ -29,6 +28,8 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from models import MoralDataset
 from models import Autoencoder
 import argparse
+
+from utils import normalize_mask_token
 
 random.seed(42)
 
@@ -225,7 +226,8 @@ def train_mlm_model(
     lr_ae=1e-3, lr_bert=2e-5,
     dropout_rate=0.1, clip_grad_norm=5.0, weight_decay=1e-5, pooling_method = "mean",
     scheduler_type="cosine", early_stopping_patience=3,
-    train_n_last_layers=0, log_path=None, inject_embedding=True, model_name =  "bert-base-uncased", eval_only=False
+    train_n_last_layers=0, log_path=None, inject_embedding=True, model_name =  "bert-base-uncased", eval_only=False, 
+    moving_avg = False, moving_avg_window = -1 # moving_avg_window = -1 means we don't use windowed moving average
 ):
     # Load pretrained model
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -644,7 +646,12 @@ def main(args):
 
             with open(os.path.join(args.input_dir, f"test_data_{args.pooling_method}_{args.threshold}.json"), "r") as f:
                 test_data = json.load(f)
-        
+
+        # Normalize [MASK] tokens
+        train_data = normalize_mask_token(train_data, tokenizer)
+        test_data = normalize_mask_token(test_data, tokenizer)
+
+        # We filter out entries that do not have any [MASK]/<mask> tokens after tokenization
         train_data = filter_maskless_entries(train_data, tokenizer)
         test_data = filter_maskless_entries(test_data, tokenizer)
 
@@ -692,7 +699,9 @@ def main(args):
             log_path=log_path,
             inject_embedding=args.inject_embedding,
             model_name=args.model_name,
-            eval_only=args.eval_only
+            eval_only=args.eval_only,
+            # moving_avg = args.moving_avg,
+            # moving_avg_window = args.moving_avg_window
         )
 
         if model_H:
@@ -732,6 +741,8 @@ if __name__ == "__main__":
     parser.add_argument("--eval_only", action="store_true", help="Run evaluation only without training")
     parser.add_argument("--sentence_mask_type", type=str, default=None, help="Masking type")
     parser.add_argument("--threshold", type=int, default=20, help="Minimum sentences per character")
+    parser.add_argument("--moving_avg", action="store_true", help="Use moving average smoothing for metrics")
+    parser.add_argument("--moving_avg_window", type=int, default=-1, help="Window size for moving average smoothing (-1 means no windowing)")
 
     args = parser.parse_args()
     main(args)

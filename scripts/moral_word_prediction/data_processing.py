@@ -39,7 +39,11 @@ def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, 
 
     return torch.cat(all_embeddings, dim=0)
 
-def data_preprocess(model_name, source_data_path, output_dir, threshold=20, pooling_method="mean", reprocess=False, sentence_mask_type = None):
+def data_preprocess(model_name, source_data_path, output_dir, threshold=20, 
+                    pooling_method="mean", reprocess=False, sentence_mask_type = None,
+                    moving_avg = False, moving_avg_window = -1 # moving_avg_window = -1 means we don't use windowed moving average
+                    ):
+    
     os.makedirs(output_dir, exist_ok=True)
 
     if sentence_mask_type is not None:
