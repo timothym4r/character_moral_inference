@@ -369,7 +369,8 @@ def train_mlm_model(
 
                 # inject
                 for i, mi in enumerate(mask_index):
-                    hidden[i, mi, :] += recon_vec[i]
+                    mi = int(mi.item())
+                    hidden[i, mi, :] = hidden[i, mi, :] + recon_vec[i]
 
                 lm_head = get_lm_head(bert_lm)
                 logits = lm_head(hidden)
