@@ -21,7 +21,13 @@ def ensure_special_tokens(tokenizer, model, special_tokens):
         tokenizer.add_special_tokens({"additional_special_tokens": to_add})
         model.resize_token_embeddings(len(tokenizer))
 
-
+def safe_mean(x: torch.Tensor, dim=0, out_dim=None):
+    """Mean with empty-safe fallback."""
+    if x is None or x.numel() == 0:
+        assert out_dim is not None
+        return torch.zeros(out_dim, dtype=torch.float32)
+    return x.mean(dim=dim)
+ 
 def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, pooling_method="mean"):
     all_embeddings = []
     for i in range(0, len(sentences), batch_size):
