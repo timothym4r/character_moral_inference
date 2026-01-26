@@ -27,6 +27,7 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 # Import from local modules
 from models import MoralDataset
 from models import Autoencoder
+from models import TwoStreamAttnPool
 import argparse
 
 from utils import normalize_mask_token
@@ -335,6 +336,8 @@ def train_mlm_model(
     model_H = Autoencoder(768, latent_dim, dropout=dropout_rate)
     model_H.to(device)
 
+    pooler = TwoStreamAttnPool(hidden_dim=768).to(device)
+
     # Character embeddings if one-hot
     if use_one_hot:
         if char2id is None:
@@ -344,6 +347,9 @@ def train_mlm_model(
     else:
         character_embedding = None
         embedding_params = []
+
+    if inject_embedding and not use_one_hot:
+        optim_groups.insert(0, {"params": pooler.parameters(), "lr": lr_ae})
 
     # Optimizer: separate LRs
     optim_groups = [
@@ -399,7 +405,20 @@ def train_mlm_model(
                     char_id = batch["character_id"].to(device)
                     char_vec = character_embedding(char_id)
                 else:
-                    char_vec = batch["avg_embedding"].to(device)
+                    spk_hist = batch["spoken_hist"].to(device)
+                    spk_mask = batch["spoken_hist_mask"].to(device)
+                    act_hist = batch["action_hist"].to(device)
+                    act_mask = batch["action_hist_mask"].to(device)
+
+                    spk_mean = batch["spoken_mean"].to(device)
+                    act_mean = batch["action_mean"].to(device)
+
+                    char_vec, c_spk, c_act, mix_w = pooler(
+                        spk_hist, spk_mask,
+                        act_hist, act_mask,
+                        spk_mean=spk_mean, act_mean=act_mean
+                    )
+
 
                 # forward H
                 if use_vae:
@@ -568,8 +587,22 @@ def evaluate_mlm(model_H, dataset, tokenizer, bert_lm, use_one_hot=False, charac
             if use_one_hot:
                 char_id = batch["character_id"].to(device)
                 char_vec = character_embedding(char_id)
+
             else:
-                char_vec = batch["avg_embedding"].to(device)
+                spk_hist = batch["spoken_hist"].to(device)
+                spk_mask = batch["spoken_hist_mask"].to(device)
+                act_hist = batch["action_hist"].to(device)
+                act_mask = batch["action_hist_mask"].to(device)
+
+                spk_mean = batch["spoken_mean"].to(device)
+                act_mean = batch["action_mean"].to(device)
+
+                char_vec, _, _, _ = pooler(
+                    spk_hist, spk_mask,
+                    act_hist, act_mask,
+                    spk_mean=spk_mean, act_mean=act_mean
+                )
+
 
             if inject_embedding:
                 recon_vec, z = model_H(char_vec)
