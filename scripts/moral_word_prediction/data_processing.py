@@ -62,15 +62,24 @@ def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, 
 
     return torch.cat(all_embeddings, dim=0)
 
-def data_preprocess(model_name, source_data_path, output_dir, threshold=20, 
-                    pooling_method="mean", reprocess=False, sentence_mask_type = None,
-                    moving_avg = False, moving_avg_window = -1 # moving_avg_window = -1 means we don't use windowed moving average
-                    ):
-    
+def data_preprocess(
+    model_name,
+    source_data_path,
+    output_dir,
+    threshold=20,
+    pooling_method="mean",
+    reprocess=False,
+    sentence_mask_type=None,
+    # NEW FLAGS
+    add_type_tokens=True,
+    store_history_embeddings=True,
+    max_history_per_type=None,   # e.g. 200 to cap record size; None = no cap
+    save_fp16=True               # store history embeds as float16 to reduce JSON size
+):
     os.makedirs(output_dir, exist_ok=True)
 
     if sentence_mask_type is not None:
-        train_path = os.path.join(output_dir, f"train_data_{pooling_method}_{threshold}_{sentence_mask_type}.json")  # sentence_mask_type can be "moral_word" or "all"
+        train_path = os.path.join(output_dir, f"train_data_{pooling_method}_{threshold}_{sentence_mask_type}.json")
         test_path = os.path.join(output_dir, f"test_data_{pooling_method}_{threshold}_{sentence_mask_type}.json")
     else:
         train_path = os.path.join(output_dir, f"train_data_{pooling_method}_{threshold}.json")
@@ -85,6 +94,9 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20,
     model = AutoModel.from_pretrained(model_name).to("cuda" if torch.cuda.is_available() else "cpu")
     model.eval()
 
+    if add_type_tokens:
+        ensure_special_tokens(tokenizer, model, ["[SPK]", "[ACT]"])
+
     print("Loading source data...")
     with open(source_data_path, "r") as f:
         moral_data = json.load(f)
@@ -92,24 +104,33 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20,
     moral_dialogue = moral_data["moral_dialogue"]
     moral_dialogue_masked = moral_data["moral_dialogue_masked"]
     ground_truths = moral_data["ground_truths"]
-    sentence_type = moral_data["sentence_type"] # "spoken" or "action"
+    sentence_type = moral_data["sentence_type"]  # "spoken" or "action"
 
     if sentence_mask_type is not None:
-        mask_prediction_index = moral_data["moral_label"]   # Moral label is only given to sentences containing moral word and classified as moral
+        mask_prediction_index = moral_data["moral_label"]
 
     all_records = []
 
     for movie, characters in tqdm(moral_dialogue.items(), desc="Processing characters"):
         for character, original_sentences in characters.items():
-
             num_sentences = len(original_sentences)
             if num_sentences < threshold:
                 continue
 
             try:
+                # Convert sentence_type list -> np array for correct boolean masking
+                stypes = np.array(sentence_type[movie][character], dtype=object)
+                assert len(stypes) == num_sentences
+
+                # Option A: prefix sentences by type BEFORE embedding
+                if add_type_tokens:
+                    typed_sentences = [prefix_by_type(s, t) for s, t in zip(original_sentences, stypes)]
+                else:
+                    typed_sentences = original_sentences
+
                 embeddings = get_sentence_embeddings(
-                    original_sentences, model, tokenizer, model.device, pooling_method=pooling_method
-                )
+                    typed_sentences, model, tokenizer, model.device, pooling_method=pooling_method
+                )  # [num_sentences, hidden]
 
                 masked_sentences = moral_dialogue_masked[movie][character]
                 moral_words = ground_truths[movie][character]
@@ -117,36 +138,62 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20,
                 for idx in range(threshold, num_sentences):
                     if sentence_mask_type is not None and mask_prediction_index[movie][character][idx] == "No":
                         continue
-                    
-                    # Take past spoken and action sentences separately
-                    action_sentences = original_sentences[:idx][sentence_type[movie][character][:idx] == "action"]
-                    spoken_sentences = original_sentences[:idx][sentence_type[movie][character][:idx] == "spoken"]
 
-                    action_embeddings = embeddings[:idx][sentence_type[movie][character][:idx] == "action"]
-                    spoken_embeddings = embeddings[:idx][sentence_type[movie][character][:idx] == "spoken"]
+                    # History up to idx (exclusive)
+                    hist_mask = np.arange(idx)
+                    hist_types = stypes[hist_mask]
 
-                    # TODO: Implement the embedding making
+                    spoken_mask = (hist_types == "spoken")
+                    action_mask = (hist_types == "action")
 
-                    past_embeds = embeddings[:idx]
-                    # If we directly take the mean of empty tensor, it will be NaN and raise an error later
-                    if past_embeds.size(0) == 0:
-                        avg_embedding = torch.zeros(embeddings.size(1))
-                    else:
-                        avg_embedding = past_embeds.mean(dim=0)
+                    spoken_embeds = embeddings[:idx][torch.from_numpy(spoken_mask)]
+                    action_embeds = embeddings[:idx][torch.from_numpy(action_mask)]
+
+                    # Optional cap to reduce JSON size
+                    if max_history_per_type is not None:
+                        if spoken_embeds.size(0) > max_history_per_type:
+                            spoken_embeds = spoken_embeds[-max_history_per_type:]
+                        if action_embeds.size(0) > max_history_per_type:
+                            action_embeds = action_embeds[-max_history_per_type:]
+
+                    hidden_dim = embeddings.size(1)
+                    spoken_mean = safe_mean(spoken_embeds, dim=0, out_dim=hidden_dim)
+                    action_mean = safe_mean(action_embeds, dim=0, out_dim=hidden_dim)
+
+                    # Prefix the *current* masked sentence with its type token too
+                    cur_type = stypes[idx]
+                    cur_masked_sentence = masked_sentences[idx]
+                    if add_type_tokens:
+                        cur_masked_sentence = prefix_by_type(cur_masked_sentence, cur_type)
 
                     record = {
                         "movie": movie,
                         "character": character,
-                        "masked_sentence": masked_sentences[idx],
+                        "sentence_type": str(cur_type),  # "spoken" or "action"
+                        "masked_sentence": cur_masked_sentence,
                         "target_word": moral_words[idx],
-                        "avg_embedding": avg_embedding.tolist(),
-                        # "past_sentences": original_sentences[:idx],
+                        "history_len": int(idx),
 
-                        # Now instead of only spoken sentences, we provide all past sentences (spoken + action)
-                        "spoken_sentences": spoken_sentences,
-                        "action_sentences": action_sentences,
-                        "history_len": idx
+                        # Two-stream pooled baselines (useful ablations / fallback)
+                        "spoken_mean": spoken_mean.tolist(),
+                        "action_mean": action_mean.tolist(),
+                        "spoken_count": int(spoken_embeds.size(0)),
+                        "action_count": int(action_embeds.size(0)),
                     }
+
+                    # Proper attention-pooling inputs: store sequences per type
+                    if store_history_embeddings:
+                        # store as fp16 list to reduce file size (still JSON)
+                        if save_fp16:
+                            se = spoken_embeds.numpy().astype(np.float16).tolist()
+                            ae = action_embeds.numpy().astype(np.float16).tolist()
+                        else:
+                            se = spoken_embeds.numpy().astype(np.float32).tolist()
+                            ae = action_embeds.numpy().astype(np.float32).tolist()
+
+                        record["spoken_history_embeds"] = se
+                        record["action_history_embeds"] = ae
+
                     all_records.append(record)
 
             except RuntimeError as e:
@@ -154,7 +201,6 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20,
                 torch.cuda.empty_cache()
                 gc.collect()
 
-    # Split train/test once
     random.shuffle(all_records)
     split_idx = int(0.7 * len(all_records))
     train_data, test_data = all_records[:split_idx], all_records[split_idx:]
@@ -166,9 +212,10 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20,
 
     print(f"Saved train/test data at {output_dir} ({len(train_data)} train / {len(test_data)} test).")
 
-
 def main(args):
 
+    # NOTE: We can hardcode some flags here for moral word prediction
+    
     data_preprocess(
         model_name=args.model_name,
         source_data_path=args.source_data_path,
@@ -176,7 +223,11 @@ def main(args):
         threshold=args.threshold,
         pooling_method=args.pooling_method,
         reprocess=args.reprocess,
-        sentence_mask_type=args.sentence_mask_type
+        sentence_mask_type=args.sentence_mask_type,
+        add_type_tokens=args.add_type_tokens,
+        store_history_embeddings=args.store_history_embeddings,
+        max_history_per_type=args.max_history_per_type,
+        save_fp16=args.save_fp16
     )
 
 if __name__ == "__main__":
