@@ -5,6 +5,23 @@ from transformers import AutoTokenizer, AutoModel
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
+TYPE_TOKENS = {
+    "spoken": "[SPK]",
+    "action": "[ACT]",
+}
+
+def prefix_by_type(sentence: str, stype: str) -> str:
+    tok = TYPE_TOKENS.get(stype, "[SPK]")
+    return f"{tok} {sentence}"
+
+def ensure_special_tokens(tokenizer, model, special_tokens):
+    """Add special tokens to tokenizer + resize model embeddings if needed."""
+    to_add = [t for t in special_tokens if t not in tokenizer.get_vocab()]
+    if len(to_add) > 0:
+        tokenizer.add_special_tokens({"additional_special_tokens": to_add})
+        model.resize_token_embeddings(len(tokenizer))
+
+
 def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, pooling_method="mean"):
     all_embeddings = []
     for i in range(0, len(sentences), batch_size):
@@ -69,14 +86,16 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20,
     moral_dialogue = moral_data["moral_dialogue"]
     moral_dialogue_masked = moral_data["moral_dialogue_masked"]
     ground_truths = moral_data["ground_truths"]
+    sentence_type = moral_data["sentence_type"] # "spoken" or "action"
 
     if sentence_mask_type is not None:
-        mask_prediction_index = moral_data["moral_label"]
+        mask_prediction_index = moral_data["moral_label"]   # Moral label is only given to sentences containing moral word and classified as moral
 
     all_records = []
 
     for movie, characters in tqdm(moral_dialogue.items(), desc="Processing characters"):
         for character, original_sentences in characters.items():
+
             num_sentences = len(original_sentences)
             if num_sentences < threshold:
                 continue
@@ -92,6 +111,15 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20,
                 for idx in range(threshold, num_sentences):
                     if sentence_mask_type is not None and mask_prediction_index[movie][character][idx] == "No":
                         continue
+                    
+                    # Take past spoken and action sentences separately
+                    action_sentences = original_sentences[:idx][sentence_type[movie][character][:idx] == "action"]
+                    spoken_sentences = original_sentences[:idx][sentence_type[movie][character][:idx] == "spoken"]
+
+                    action_embeddings = embeddings[:idx][sentence_type[movie][character][:idx] == "action"]
+                    spoken_embeddings = embeddings[:idx][sentence_type[movie][character][:idx] == "spoken"]
+
+                    # TODO: Implement the embedding making
 
                     past_embeds = embeddings[:idx]
                     # If we directly take the mean of empty tensor, it will be NaN and raise an error later
@@ -106,7 +134,11 @@ def data_preprocess(model_name, source_data_path, output_dir, threshold=20,
                         "masked_sentence": masked_sentences[idx],
                         "target_word": moral_words[idx],
                         "avg_embedding": avg_embedding.tolist(),
-                        "past_sentences": original_sentences[:idx],
+                        # "past_sentences": original_sentences[:idx],
+
+                        # Now instead of only spoken sentences, we provide all past sentences (spoken + action)
+                        "spoken_sentences": spoken_sentences,
+                        "action_sentences": action_sentences,
                         "history_len": idx
                     }
                     all_records.append(record)
