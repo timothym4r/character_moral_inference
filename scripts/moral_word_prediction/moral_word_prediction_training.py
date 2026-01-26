@@ -33,6 +33,12 @@ from utils import normalize_mask_token
 
 random.seed(42)
 
+def ensure_special_tokens(tokenizer, model, special_tokens):
+    to_add = [t for t in special_tokens if t not in tokenizer.get_vocab()]
+    if len(to_add) > 0:
+        tokenizer.add_special_tokens({"additional_special_tokens": to_add})
+        model.resize_token_embeddings(len(tokenizer))
+
 def filter_maskless_entries(data, tokenizer, max_length=512):
     mask_token_id = tokenizer.mask_token_id
     cleaned = []
@@ -89,6 +95,8 @@ def update_char_vec_embeddings(dataset, sentence_cache):
     Use precomputed embeddings per (movie, character).
     For each row, take the mean of the slice up to len(past_sentences).
     """
+    # TODO: handle the changes of the parameters regarding character embedding creation
+
     for row in tqdm(dataset, desc="Updating char embeddings"):
         key = (row["movie"], row["character"])
         past_len = len(row["past_sentences"])
@@ -97,7 +105,6 @@ def update_char_vec_embeddings(dataset, sentence_cache):
             continue
         full_embeds = sentence_cache[key]  # [num_sentences, hidden_dim]
         row["avg_embedding"] = full_embeds[:past_len].mean(0)
-
 
 def init_csv(log_path):
     os.makedirs(os.path.dirname(log_path), exist_ok=True)  # Create parent dirs if needed
@@ -149,36 +156,76 @@ def compute_orthogonality_loss(z, strategy="off_diag"):
     else:
         raise ValueError(f"Unsupported orthogonality loss strategy: {strategy}")
 
+def pad_2d_list_of_embeds(list_of_seq, device=None):
+    """
+    list_of_seq: list of T_i x D tensors (float)
+    returns:
+      padded: B x T_max x D
+      mask:   B x T_max  (1 where valid, 0 where pad)
+    """
+    B = len(list_of_seq)
+    D = list_of_seq[0].size(-1) if B > 0 and list_of_seq[0].numel() > 0 else 768
+    T_max = max([x.size(0) for x in list_of_seq]) if B > 0 else 0
+
+    padded = torch.zeros(B, T_max, D, dtype=torch.float32)
+    mask = torch.zeros(B, T_max, dtype=torch.float32)
+
+    for i, x in enumerate(list_of_seq):
+        if x.numel() == 0:
+            continue
+        t = x.size(0)
+        padded[i, :t, :] = x
+        mask[i, :t] = 1.0
+
+    return padded, mask
+
 def custom_collate_fn(batch):
     tensor_keys = ["input_ids", "attention_mask", "target_id", "mask_index"]
-    optional_keys = ["character_id", "avg_embedding"]
+    optional_keys = ["character_id"]  # avg_embedding no longer the default
 
     out = {key: [] for key in tensor_keys + optional_keys}
-    out["movie"], out["character"], out["past_sentences"] = [], [], []
+    out["movie"], out["character"] = [], []
+
+    # NEW: store for pooling
+    out["spoken_mean"], out["action_mean"] = [], []
+    out["spoken_hist_list"], out["action_hist_list"] = [], []
 
     for sample in batch:
-        # guaranteed tensor keys
         for key in tensor_keys:
             out[key].append(sample[key])
 
-        # optional keys
         for key in optional_keys:
-            if key in sample:   # only append if exists
+            if key in sample:
                 out[key].append(sample[key])
 
-        # keep as lists
         out["movie"].append(sample["movie"])
         out["character"].append(sample["character"])
-        out["past_sentences"].append(sample["past_sentences"])
 
-    # Stack guaranteed tensor keys
+        # NEW: fixed means (always exist if you saved them)
+        out["spoken_mean"].append(sample["spoken_mean"])
+        out["action_mean"].append(sample["action_mean"])
+
+        # NEW: variable-length histories (may be empty)
+        out["spoken_hist_list"].append(sample["spoken_history_embeds"])
+        out["action_hist_list"].append(sample["action_history_embeds"])
+
     for key in tensor_keys:
         out[key] = torch.stack(out[key])
 
-    # Stack optional only if non-empty
-    for key in optional_keys:
-        if len(out[key]) > 0:
-            out[key] = torch.stack(out[key])
+    if len(out["character_id"]) > 0:
+        out["character_id"] = torch.stack(out["character_id"])
+
+    # NEW: stack means
+    out["spoken_mean"] = torch.stack(out["spoken_mean"])
+    out["action_mean"] = torch.stack(out["action_mean"])
+
+    # NEW: pad histories
+    out["spoken_hist"], out["spoken_hist_mask"] = pad_2d_list_of_embeds(out["spoken_hist_list"])
+    out["action_hist"], out["action_hist_mask"] = pad_2d_list_of_embeds(out["action_hist_list"])
+
+    # remove raw lists to keep batch clean
+    del out["spoken_hist_list"]
+    del out["action_hist_list"]
 
     return out
 
@@ -232,6 +279,8 @@ def train_mlm_model(
     # Load pretrained model
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     bert_lm = AutoModelForMaskedLM.from_pretrained(model_name).to("cuda" if torch.cuda.is_available() else "cpu")
+
+    ensure_special_tokens(tokenizer, bert_lm, ["[SPK]", "[ACT]"])
 
     if eval_only:
         print(f"Running evaluation-only mode for {model_name} (no fine-tuning)...")
