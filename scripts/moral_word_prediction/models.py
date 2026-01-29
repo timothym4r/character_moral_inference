@@ -61,28 +61,63 @@ class MoralDataset(Dataset):
     def __getitem__(self, idx):
         row = self.data[idx]
 
+        # 1) tokenize target word into wordpieces
+        target_toks = self.tokenizer.tokenize(row["target_word"])
+        if len(target_toks) == 0:
+            raise ValueError(f"Empty tokenization for target_word={row['target_word']}")
+
+        # 2) ensure masked_sentence has the right number of [MASK] tokens
+        masked_sentence = row["masked_sentence"]
+
+        # how many masks are currently in the sentence?
+        tmp = self.tokenizer(masked_sentence, return_tensors="pt", truncation=True, max_length=self.max_length)
+        cur_num_masks = (tmp["input_ids"][0] == self.tokenizer.mask_token_id).sum().item()
+
+        # Common case in your pipeline: exactly 1 [MAXK] in text, but target has k wordpieces
+        # Expand that single [MASK] into k masks.
+        if cur_num_masks == 1 and len(target_toks) > 1:
+            masked_sentence = masked_sentence.replace(
+                self.tokenizer.mask_token,
+                " ".join([self.tokenizer.mask_token] * len(target_toks)),
+                1  # replace only the first occurrence
+            )
+
+        # If you already created multiple masks upstream, that's fine.
+        # But now we must enforce: number of masks == number of target wordpieces
         encoding = self.tokenizer(
-            row["masked_sentence"],
+            masked_sentence,
             return_tensors="pt",
             padding="max_length",
             truncation=True,
             max_length=self.max_length
         )
 
-        tok = self.tokenizer.tokenize(row["target_word"])
-        assert len(tok) == 1
-        target_id = self.tokenizer.convert_tokens_to_ids(tok[0])
-        
         mask_positions = (encoding["input_ids"] == self.tokenizer.mask_token_id).nonzero(as_tuple=True)
-        if len(mask_positions[1]) == 0:
-            return {}  # you already filter these out upstream
-        mask_index = mask_positions[1][0].item()
+        mask_indices = mask_positions[1].tolist()  # list of positions in the sequence
+
+        if len(mask_indices) == 0:
+            return {}  # or raise
+
+        if len(mask_indices) != len(target_toks):
+            # This indicates your masked_sentence and target_word are not aligned.
+            # Better to skip than train on wrong supervision.
+            # You can print for debugging:
+            # print("Mismatch:", row["target_word"], target_toks, "masks:", len(mask_indices), masked_sentence)
+            return {}
+
+        target_ids = self.tokenizer.convert_tokens_to_ids(target_toks)
+        if any(tid == self.tokenizer.unk_token_id for tid in target_ids):
+            # weird / bad targets; skip
+            return {}
 
         result = {
             "input_ids": encoding["input_ids"].squeeze(0),
             "attention_mask": encoding["attention_mask"].squeeze(0),
-            "target_id": torch.tensor(target_id, dtype=torch.long),
-            "mask_index": torch.tensor(mask_index, dtype=torch.long),
+
+            # CHANGED: multi-token targets + multi mask indices
+            "target_ids": torch.tensor(target_ids, dtype=torch.long),          # (k,)
+            "mask_indices": torch.tensor(mask_indices, dtype=torch.long),      # (k,)
+
             "movie": row["movie"],
             "character": row["character"],
         }
@@ -91,19 +126,13 @@ class MoralDataset(Dataset):
             key = f"{row['movie']}_{row['character']}"
             result["character_id"] = torch.tensor(self.char2id[key], dtype=torch.long)
         else:
-            # NEW: two-stream history + means for attention pooling
             result["spoken_mean"] = self._to_embed_vec(row.get("spoken_mean"))
             result["action_mean"] = self._to_embed_vec(row.get("action_mean"))
-
             result["spoken_history_embeds"] = self._to_embed_seq(row.get("spoken_history_embeds"))
             result["action_history_embeds"] = self._to_embed_seq(row.get("action_history_embeds"))
 
-            # Optional debug / ablation convenience:
-            # If you kept these in preprocess, they can be useful but not required.
-            # result["spoken_count"] = torch.tensor(row.get("spoken_count", 0), dtype=torch.long)
-            # result["action_count"] = torch.tensor(row.get("action_count", 0), dtype=torch.long)
-
         return result
+
 
 class Autoencoder(nn.Module):
     def __init__(self, input_dim=768, latent_dim=20, intermediate_dim = 256, dropout=0.0):
