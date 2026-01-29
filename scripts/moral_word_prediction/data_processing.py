@@ -114,6 +114,7 @@ def data_preprocess(
     for movie, characters in tqdm(moral_dialogue.items(), desc="Processing characters"):
         for character, original_sentences in characters.items():
             num_sentences = len(original_sentences)
+
             if num_sentences < threshold:
                 continue
 
@@ -201,9 +202,22 @@ def data_preprocess(
                 torch.cuda.empty_cache()
                 gc.collect()
 
-    random.shuffle(all_records)
-    split_idx = int(0.7 * len(all_records))
-    train_data, test_data = all_records[:split_idx], all_records[split_idx:]
+    # ---- Movie-level split (no movie appears in both) ----
+    movies = sorted({r["movie"] for r in all_records})
+    random.shuffle(movies)
+
+    split_idx = int(0.7 * len(movies))
+    train_movies = set(movies[:split_idx])
+    test_movies  = set(movies[split_idx:])
+
+    train_data = [r for r in all_records if r["movie"] in train_movies]
+    test_data  = [r for r in all_records if r["movie"] in test_movies]
+
+    print(f"Movie split: {len(train_movies)} train movies / {len(test_movies)} test movies")
+    print(f"Record split: {len(train_data)} train records / {len(test_data)} test records")
+
+    # (Optional) sanity check
+    assert set(r["movie"] for r in train_data).isdisjoint(set(r["movie"] for r in test_data))
 
     with open(train_path, "w") as f:
         json.dump(train_data, f)
@@ -215,7 +229,7 @@ def data_preprocess(
 def main(args):
 
     # NOTE: We can hardcode some flags here for moral word prediction
-    
+
     data_preprocess(
         model_name=args.model_name,
         source_data_path=args.source_data_path,
@@ -226,8 +240,8 @@ def main(args):
         sentence_mask_type=args.sentence_mask_type,
         add_type_tokens=args.add_type_tokens,
         store_history_embeddings=args.store_history_embeddings,
-        max_history_per_type=args.max_history_per_type,
-        save_fp16=args.save_fp16
+        max_history_per_type=None,
+        save_fp16=True,
     )
 
 if __name__ == "__main__":
