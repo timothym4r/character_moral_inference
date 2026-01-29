@@ -28,6 +28,8 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from models import MoralDataset
 from models import Autoencoder
 from models import TwoStreamAttnPool
+from models import TwoStreamMovingAvgPool
+from models import TwoStreamMeanPool
 import argparse
 
 from utils import normalize_mask_token
@@ -41,6 +43,17 @@ def ensure_special_tokens(tokenizer, model, special_tokens):
         model.resize_token_embeddings(len(tokenizer))
 
 def filter_maskless_entries(data, tokenizer, max_length=512):
+    """
+    Return only entries that contain at least one mask token after tokenization.
+
+    Args:
+        data (list of dict): each dict has key "masked_sentence"
+        tokenizer: tokenizer object from which we get the mask token id
+        max_length (int): max length for truncation
+    Returns:
+        cleaned (list of dict): filtered data
+    """
+
     mask_token_id = tokenizer.mask_token_id
     cleaned = []
     for row in data:
@@ -157,7 +170,7 @@ def compute_orthogonality_loss(z, strategy="off_diag"):
     else:
         raise ValueError(f"Unsupported orthogonality loss strategy: {strategy}")
 
-def pad_2d_list_of_embeds(list_of_seq, device=None):
+def pad_2d_list_of_embeds(list_of_seq):
     """
     list_of_seq: list of T_i x D tensors (float)
     returns:
@@ -275,7 +288,7 @@ def train_mlm_model(
     dropout_rate=0.1, clip_grad_norm=5.0, weight_decay=1e-5, pooling_method = "mean",
     scheduler_type="cosine", early_stopping_patience=3,
     train_n_last_layers=0, log_path=None, inject_embedding=True, model_name =  "bert-base-uncased", eval_only=False, 
-    moving_avg = False, moving_avg_window = -1 # moving_avg_window = -1 means we don't use windowed moving average
+    decay = 0.9, sent_pooler = None # moving_avg_window = -1 means we don't use windowed moving average
 ):
     # Load pretrained model
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -313,15 +326,9 @@ def train_mlm_model(
 
     # Freeze all params first
     freeze_all_params(bert_lm)
-    # for name, param in bert_lm.named_parameters():
-    #     param.requires_grad = False
 
     # Unfreeze the last n transformer layers
     unfreeze_last_n_transformer_layers(bert_lm, train_n_last_layers)
-    # if train_n_last_layers > 0:
-    #     for name, param in bert_lm.named_parameters():
-    #         if any(f"encoder.layer.{i}" in name for i in range(12-train_n_last_layers, 12)):
-    #             param.requires_grad = True
 
     # Allow cls/lm_head layer being trained
     lm_head = get_lm_head(bert_lm)
@@ -335,8 +342,13 @@ def train_mlm_model(
         # return None, None, None
     model_H = Autoencoder(768, latent_dim, dropout=dropout_rate)
     model_H.to(device)
-
-    pooler = TwoStreamAttnPool(hidden_dim=768).to(device)
+    
+    if sent_pooler == "attn" and inject_embedding and (not use_one_hot):
+        pooler = TwoStreamAttnPool(hidden_dim=768).to(device)
+    elif sent_pooler == "moving_avg" and inject_embedding and (not use_one_hot):
+        pooler = TwoStreamMovingAvgPool(hidden_dim=768, decay=decay).to(device)
+    elif inject_embedding and (not use_one_hot):
+        pooler = TwoStreamMeanPool(hidden_dim=768).to(device)
 
     # Character embeddings if one-hot
     if use_one_hot:
@@ -348,18 +360,16 @@ def train_mlm_model(
         character_embedding = None
         embedding_params = []
 
-    if inject_embedding and not use_one_hot:
-        optim_groups.insert(0, {"params": pooler.parameters(), "lr": lr_ae})
-
-    # Optimizer: separate LRs
     optim_groups = [
-        {"params": [p for n, p in bert_lm.named_parameters() if p.requires_grad], "lr": lr_bert},
+        {"params": [p for _, p in bert_lm.named_parameters() if p.requires_grad], "lr": lr_bert},
     ]
 
     if inject_embedding:
         optim_groups.insert(0, {"params": model_H.parameters(), "lr": lr_ae})
-        if embedding_params:
+        if use_one_hot and embedding_params:
             optim_groups.insert(1, {"params": embedding_params, "lr": lr_ae})
+        if (not use_one_hot) and (pooler is not None):
+            optim_groups.insert(1, {"params": pooler.parameters(), "lr": lr_ae})
 
     # Optimizer
     optimizer = AdamW(optim_groups, weight_decay=weight_decay)
@@ -385,10 +395,15 @@ def train_mlm_model(
     best_state = None
 
     for epoch in range(num_epochs):
+        
         if inject_embedding:
             model_H.train()
+
         if character_embedding:
             character_embedding.train()
+        
+        if pooler is not None:
+            pooler.train()
 
         total_loss, recon_total, ce_total, kl_total, ort_total = 0, 0, 0, 0, 0
 
@@ -418,7 +433,6 @@ def train_mlm_model(
                         act_hist, act_mask,
                         spk_mean=spk_mean, act_mean=act_mean
                     )
-
 
                 # forward H
                 if use_vae:
@@ -484,7 +498,8 @@ def train_mlm_model(
             ort_total += (beta * ortho_loss).item()
 
         # ---- Evaluation after epoch ----
-        eval_metrics = evaluate_mlm(model_H, val_dataset, tokenizer, bert_lm, use_one_hot, character_embedding, inject_embedding = inject_embedding)
+        eval_metrics = evaluate_mlm(model_H, val_dataset, tokenizer, bert_lm, pooler=pooler, use_one_hot=use_one_hot, character_embedding=character_embedding, inject_embedding=inject_embedding)
+
         val_loss = eval_metrics["cross_entropy"]
 
         print(f"Epoch {epoch+1}: TrainTotal={total_loss:.4f}, Recon={recon_total:.4f}, CE={ce_total:.4f}, Ortho={ort_total:.4f}, KL={kl_total:.4f}")
@@ -523,15 +538,17 @@ def train_mlm_model(
                 },
                 eval_metrics=eval_metrics
             )
-
+        
+        # TODO: Change the logic or used built-in early stopping from pytorch/huggingface
         # ---- Early stopping ----
         if val_loss < best_loss:
             best_loss = val_loss
             patience_counter = 0
             best_state = {
                 "model_H": model_H.state_dict(),
-                "character_embedding": character_embedding.state_dict() if character_embedding else None,
-                "bert_lm": bert_lm.state_dict()
+                "bert_lm": bert_lm.state_dict(),
+                "pooler": pooler.state_dict() if pooler is not None else None,  # NEW
+                "character_embedding": character_embedding.state_dict() if character_embedding else None
             }
         else:
             patience_counter += 1
@@ -543,23 +560,29 @@ def train_mlm_model(
     if best_state:
         if inject_embedding:
             model_H.load_state_dict(best_state["model_H"])
-        else:
-            model_H = None
+            pooler.load_state_dict(best_state["pooler"])   # NEW
+
         if character_embedding and best_state["character_embedding"]:
             character_embedding.load_state_dict(best_state["character_embedding"])
+
         if "bert_lm" in best_state and best_state["bert_lm"]:
             bert_lm.load_state_dict(best_state["bert_lm"])
 
-    return model_H, character_embedding, bert_lm
+    return model_H, character_embedding, bert_lm, pooler
 
-def evaluate_mlm(model_H, dataset, tokenizer, bert_lm, use_one_hot=False, character_embedding=None, batch_size=16, inject_embedding = True):
+def evaluate_mlm(model_H, dataset, tokenizer, bert_lm, pooler=None, use_one_hot=False, character_embedding=None, batch_size=16, inject_embedding=True):
     if inject_embedding and model_H is not None:
         model_H.eval()
     if character_embedding:
         character_embedding.eval()
     bert_lm.eval()
-
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    if pooler is not None:
+        pooler.to(device)
+        pooler.eval()
+
     # device moves
     if inject_embedding and model_H is not None:
         model_H.to(device)
@@ -589,20 +612,20 @@ def evaluate_mlm(model_H, dataset, tokenizer, bert_lm, use_one_hot=False, charac
                 char_vec = character_embedding(char_id)
 
             else:
-                spk_hist = batch["spoken_hist"].to(device)
-                spk_mask = batch["spoken_hist_mask"].to(device)
-                act_hist = batch["action_hist"].to(device)
-                act_mask = batch["action_hist_mask"].to(device)
+                if inject_embedding:
+                    spk_hist = batch["spoken_hist"].to(device)
+                    spk_mask = batch["spoken_hist_mask"].to(device)
+                    act_hist = batch["action_hist"].to(device)
+                    act_mask = batch["action_hist_mask"].to(device)
 
-                spk_mean = batch["spoken_mean"].to(device)
-                act_mean = batch["action_mean"].to(device)
+                    spk_mean = batch["spoken_mean"].to(device)
+                    act_mean = batch["action_mean"].to(device)
 
-                char_vec, _, _, _ = pooler(
-                    spk_hist, spk_mask,
-                    act_hist, act_mask,
-                    spk_mean=spk_mean, act_mean=act_mean
-                )
-
+                    char_vec, _, _, _ = pooler(
+                        spk_hist, spk_mask,
+                        act_hist, act_mask,
+                        spk_mean=spk_mean, act_mean=act_mean
+                    )
 
             if inject_embedding:
                 recon_vec, z = model_H(char_vec)
@@ -759,7 +782,7 @@ def main(args):
         train_dataset = MoralDataset(train_data, tokenizer=tokenizer, use_one_hot=args.use_one_hot, char2id=char2id)
         val_dataset = MoralDataset(test_data, tokenizer=tokenizer, use_one_hot=args.use_one_hot, char2id=char2id)
 
-        model_H, character_embedding, bert_lm = train_mlm_model(
+        model_H, character_embedding, bert_lm, pooler = train_mlm_model(
             train_dataset=train_dataset,
             val_dataset=val_dataset,
             use_vae=args.use_vae,
@@ -783,17 +806,25 @@ def main(args):
             inject_embedding=args.inject_embedding,
             model_name=args.model_name,
             eval_only=args.eval_only,
-            # moving_avg = args.moving_avg,
-            # moving_avg_window = args.moving_avg_window
+            decay = args.decay,
+            sent_pooler = args.sent_pooler
         )
 
-        if model_H:
-            torch.save(model_H.state_dict(), model_H_path)
-        if bert_lm:
-            torch.save(bert_lm.state_dict(), bert_lm_path)
-        if character_embedding:
-            character_embedding_path = os.path.join(args.output_dir, "character_embedding.pth")
-            torch.save(character_embedding.state_dict(), character_embedding_path)
+    if model_H:
+        torch.save(model_H.state_dict(), model_H_path)
+
+    if bert_lm:
+        torch.save(bert_lm.state_dict(), bert_lm_path)
+
+    # NEW
+    if pooler:
+        pooler_path = os.path.join(args.output_dir, "pooler.pth")
+        torch.save(pooler.state_dict(), pooler_path)
+
+    if character_embedding:
+        character_embedding_path = os.path.join(args.output_dir, "character_embedding.pth")
+        torch.save(character_embedding.state_dict(), character_embedding_path)
+
     else:
         print("Model already exists. Use --retrain to overwrite.")
 
