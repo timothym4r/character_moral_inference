@@ -193,16 +193,34 @@ def pad_2d_list_of_embeds(list_of_seq):
 
     return padded, mask
 
+def pad_1d_list(list_of_1d, pad_value=-1):
+    B = len(list_of_1d)
+    L = max(x.numel() for x in list_of_1d) if B > 0 else 0
+    out = torch.full((B, L), pad_value, dtype=torch.long)
+    mask = torch.zeros((B, L), dtype=torch.float32)
+    for i, x in enumerate(list_of_1d):
+        l = x.numel()
+        out[i, :l] = x
+        mask[i, :l] = 1.0
+    return out, mask
+
 def custom_collate_fn(batch):
-    tensor_keys = ["input_ids", "attention_mask", "target_id", "mask_index"]
-    optional_keys = ["character_id"]  # avg_embedding no longer the default
+    batch = [s for s in batch if isinstance(s, dict) and len(s) > 0]
+    if len(batch) == 0:
+        return None
+
+    tensor_keys = ["input_ids", "attention_mask"]
+    optional_keys = ["character_id"]
+
+    has_stream = ("spoken_mean" in batch[0])  # if False => one-hot mode (or stream features missing)
 
     out = {key: [] for key in tensor_keys + optional_keys}
+    out["target_ids_list"], out["mask_indices_list"] = [], []
     out["movie"], out["character"] = [], []
 
-    # NEW: store for pooling
-    out["spoken_mean"], out["action_mean"] = [], []
-    out["spoken_hist_list"], out["action_hist_list"] = [], []
+    if has_stream:
+        out["spoken_mean"], out["action_mean"] = [], []
+        out["spoken_hist_list"], out["action_hist_list"] = [], []
 
     for sample in batch:
         for key in tensor_keys:
@@ -215,31 +233,36 @@ def custom_collate_fn(batch):
         out["movie"].append(sample["movie"])
         out["character"].append(sample["character"])
 
-        # NEW: fixed means (always exist if you saved them)
-        out["spoken_mean"].append(sample["spoken_mean"])
-        out["action_mean"].append(sample["action_mean"])
+        out["target_ids_list"].append(sample["target_ids"])
+        out["mask_indices_list"].append(sample["mask_indices"])
 
-        # NEW: variable-length histories (may be empty)
-        out["spoken_hist_list"].append(sample["spoken_history_embeds"])
-        out["action_hist_list"].append(sample["action_history_embeds"])
+        if has_stream:
+            out["spoken_mean"].append(sample["spoken_mean"])
+            out["action_mean"].append(sample["action_mean"])
+            out["spoken_hist_list"].append(sample["spoken_history_embeds"])
+            out["action_hist_list"].append(sample["action_history_embeds"])
 
+    # stack fixed-size tensors
     for key in tensor_keys:
         out[key] = torch.stack(out[key])
 
     if len(out["character_id"]) > 0:
         out["character_id"] = torch.stack(out["character_id"])
 
-    # NEW: stack means
-    out["spoken_mean"] = torch.stack(out["spoken_mean"])
-    out["action_mean"] = torch.stack(out["action_mean"])
+    if has_stream:
+        out["spoken_mean"] = torch.stack(out["spoken_mean"])
+        out["action_mean"] = torch.stack(out["action_mean"])
 
-    # NEW: pad histories
-    out["spoken_hist"], out["spoken_hist_mask"] = pad_2d_list_of_embeds(out["spoken_hist_list"])
-    out["action_hist"], out["action_hist_mask"] = pad_2d_list_of_embeds(out["action_hist_list"])
+        out["spoken_hist"], out["spoken_hist_mask"] = pad_2d_list_of_embeds(out["spoken_hist_list"])
+        out["action_hist"], out["action_hist_mask"] = pad_2d_list_of_embeds(out["action_hist_list"])
 
-    # remove raw lists to keep batch clean
-    del out["spoken_hist_list"]
-    del out["action_hist_list"]
+        del out["spoken_hist_list"]
+        del out["action_hist_list"]
+
+    out["target_ids"], out["span_mask"] = pad_1d_list(out["target_ids_list"], pad_value=-100)
+    out["mask_indices"], _ = pad_1d_list(out["mask_indices_list"], pad_value=-1)
+    del out["target_ids_list"]
+    del out["mask_indices_list"]
 
     return out
 
@@ -288,7 +311,7 @@ def train_mlm_model(
     dropout_rate=0.1, clip_grad_norm=5.0, weight_decay=1e-5, pooling_method = "mean",
     scheduler_type="cosine", early_stopping_patience=3,
     train_n_last_layers=0, log_path=None, inject_embedding=True, model_name =  "bert-base-uncased", eval_only=False, 
-    decay = 0.9, sent_pooler = None # moving_avg_window = -1 means we don't use windowed moving average
+    decay = 0.9, sent_pooler = None, moral_weight = 1.0 # moving_avg_window = -1 means we don't use windowed moving average
 ):
     # Load pretrained model
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -312,7 +335,8 @@ def train_mlm_model(
               f"Acc@1={eval_metrics['accuracy@1']:.4f}, "
               f"Acc@5={eval_metrics['accuracy@5']:.4f}, "
               f"Acc@10={eval_metrics['accuracy@10']:.4f}")
-        return None, None, bert_lm  # nothing trained
+        return None, None, bert_lm, None
+
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     bert_lm.to(device)
@@ -342,6 +366,8 @@ def train_mlm_model(
         # return None, None, None
     model_H = Autoencoder(768, latent_dim, dropout=dropout_rate)
     model_H.to(device)
+
+    pooler = None
     
     if sent_pooler == "attn" and inject_embedding and (not use_one_hot):
         pooler = TwoStreamAttnPool(hidden_dim=768).to(device)
@@ -409,10 +435,15 @@ def train_mlm_model(
 
         # ---- Training loop ----
         for batch_idx, batch in enumerate(tqdm(loader, desc=f"Epoch {epoch+1}")):
+            if batch is None:
+                continue
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
-            target_id = batch["target_id"].to(device)
-            mask_index = batch["mask_index"]
+
+            target_ids = batch["target_ids"].to(device)        # (B, L)
+            mask_indices = batch["mask_indices"].to(device)    # (B, L)
+            span_mask = batch["span_mask"].to(device)          # (B, L) float
+
 
             if inject_embedding:
                 # character vec
@@ -450,17 +481,35 @@ def train_mlm_model(
                         hidden = encoder(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
 
                 # inject
-                for i, mi in enumerate(mask_index):
-                    mi = int(mi.item())
-                    hidden[i, mi, :] = hidden[i, mi, :] + recon_vec[i]
+                B, L = mask_indices.shape
+                for i in range(B):
+                    for j in range(L):
+                        mi = int(mask_indices[i, j].item())
+                        if mi < 0:   # padding
+                            continue
+                        hidden[i, mi, :] = hidden[i, mi, :] + recon_vec[i]
+
 
                 lm_head = get_lm_head(bert_lm)
                 logits = lm_head(hidden)
 
-                mask_logits = torch.stack([logits[i, mi] for i, mi in enumerate(mask_index)])
+                # gather logits for each masked position -> (B, L, V)
+                B, T, V = logits.shape
+                mask_logits = torch.zeros(B, L, V, device=logits.device, dtype=logits.dtype)
 
-                # losses
-                ce_loss = nn.CrossEntropyLoss()(mask_logits, target_id)
+                for i in range(B):
+                    for j in range(L):
+                        mi = int(mask_indices[i, j].item())
+                        if mi < 0:
+                            continue
+                        mask_logits[i, j] = logits[i, mi]
+
+                # flatten to compute CE only on real span positions
+                mask_logits_flat = mask_logits.view(B * L, V)
+                target_flat = target_ids.view(B * L)
+
+                ce_loss = F.cross_entropy(mask_logits_flat, target_flat, ignore_index=-100)
+
                 recon_loss = nn.MSELoss()(recon_vec, char_vec)
                 if batch_idx % 4 == 0:  # optional, same as classifier
                     ortho_loss = compute_orthogonality_loss(z, strategy="off_diag")
@@ -470,17 +519,31 @@ def train_mlm_model(
                 loss = recon_loss + alpha * ce_loss + (alpha * kl_div if use_vae else 0) + beta * ortho_loss
 
             else:
-                # no injection: vanilla MLM
-                logits = bert_lm(input_ids=input_ids, attention_mask=attention_mask).logits
-                mask_logits = torch.stack([logits[i, mi] for i, mi in enumerate(mask_index)])
-                ce_loss = nn.CrossEntropyLoss()(mask_logits, target_id)
+                logits = bert_lm(input_ids=input_ids, attention_mask=attention_mask).logits  # (B,T,V)
 
-                # define placeholders so accumulators don’t crash
+                B, L = mask_indices.shape
+                B2, T, V = logits.shape
+                assert B == B2
+
+                mask_logits = torch.zeros(B, L, V, device=logits.device, dtype=logits.dtype)
+                for i in range(B):
+                    for j in range(L):
+                        mi = int(mask_indices[i, j].item())
+                        if mi < 0:
+                            continue
+                        mask_logits[i, j] = logits[i, mi]
+
+                mask_logits_flat = mask_logits.view(B * L, V)
+                target_flat = target_ids.view(B * L)
+
+                ce_loss = F.cross_entropy(mask_logits_flat, target_flat, ignore_index=-100)
+
                 recon_loss = torch.tensor(0.0, device=logits.device)
                 kl_div     = torch.tensor(0.0, device=logits.device)
                 ortho_loss = torch.tensor(0.0, device=logits.device)
 
                 loss = alpha * ce_loss
+
 
             # backward
             optimizer.zero_grad()
@@ -560,7 +623,8 @@ def train_mlm_model(
     if best_state:
         if inject_embedding:
             model_H.load_state_dict(best_state["model_H"])
-            pooler.load_state_dict(best_state["pooler"])   # NEW
+            if pooler is not None and best_state["pooler"] is not None:
+                pooler.load_state_dict(best_state["pooler"])
 
         if character_embedding and best_state["character_embedding"]:
             character_embedding.load_state_dict(best_state["character_embedding"])
@@ -602,10 +666,13 @@ def evaluate_mlm(model_H, dataset, tokenizer, bert_lm, pooler=None, use_one_hot=
 
     with torch.no_grad():
         for batch in loader:
+            if batch is None:
+                continue
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
-            target_id = batch["target_id"].to(device)
-            mask_index = batch["mask_index"]
+            target_ids = batch["target_ids"].to(device)       
+            mask_indices = batch["mask_indices"].to(device)   
+            span_mask = batch["span_mask"].to(device)         
 
             if use_one_hot:
                 char_id = batch["character_id"].to(device)
@@ -627,28 +694,58 @@ def evaluate_mlm(model_H, dataset, tokenizer, bert_lm, pooler=None, use_one_hot=
                         spk_mean=spk_mean, act_mean=act_mean
                     )
 
+            # forward logits
             if inject_embedding:
                 recon_vec, z = model_H(char_vec)
                 hidden = encoder(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
-                for i, mi in enumerate(mask_index):
-                    hidden[i, mi, :] += recon_vec[i]
+
+                B, L = mask_indices.shape
+                for i in range(B):
+                    for j in range(L):
+                        mi = int(mask_indices[i, j].item())
+                        if mi < 0:
+                            continue
+                        hidden[i, mi, :] += recon_vec[i]
+
                 lm_head = get_lm_head(bert_lm)
-                logits = lm_head(hidden)
-                # logits = bert_lm.cls(hidden)
+                logits = lm_head(hidden)  # (B,T,V)
             else:
-                logits = bert_lm(input_ids=input_ids, attention_mask=attention_mask).logits
+                logits = bert_lm(input_ids=input_ids, attention_mask=attention_mask).logits  # (B,T,V)
 
-            mask_logits = torch.stack([logits[i, mi] for i, mi in enumerate(mask_index)])
+            # gather (B,L,V)
+            B, L = mask_indices.shape
+            B2, T, V = logits.shape
+            assert B == B2
 
-            probs = F.softmax(mask_logits, dim=-1)
-            total += input_ids.size(0)
+            mask_logits = torch.zeros(B, L, V, device=logits.device, dtype=logits.dtype)
+            for i in range(B):
+                for j in range(L):
+                    mi = int(mask_indices[i, j].item())
+                    if mi < 0:
+                        continue
+                    mask_logits[i, j] = logits[i, mi]
+
+            # flatten
+            mask_logits_flat = mask_logits.view(B * L, V)
+            target_flat = target_ids.view(B * L)
+
+            # CE (sum over valid masked tokens)
+            ce_sum = F.cross_entropy(mask_logits_flat, target_flat, ignore_index=-100, reduction="sum")
+            total_ce_loss += ce_sum.item()
+
+            # top-k per masked token
+            probs = F.softmax(mask_logits_flat, dim=-1)
+            valid = (target_flat != -100)
+            valid_targets = target_flat[valid]
+            valid_probs = probs[valid]
 
             for k in topk_hits.keys():
-                topk_preds = torch.topk(probs, k=k, dim=-1).indices
-                topk_hits[k] += (topk_preds == target_id.unsqueeze(1)).sum().item()
+                topk_preds = torch.topk(valid_probs, k=k, dim=-1).indices
+                topk_hits[k] += (topk_preds == valid_targets.unsqueeze(1)).sum().item()
 
-            ce_loss = F.cross_entropy(mask_logits, target_id, reduction="sum")
-            total_ce_loss += ce_loss.item()
+            # count valid masked tokens
+            total += int(span_mask.sum().item())
+
 
     results = {"cross_entropy": total_ce_loss / total if total > 0 else 0}
     results["perplexity"] = torch.exp(torch.tensor(results["cross_entropy"])).item()
@@ -807,7 +904,8 @@ def main(args):
             model_name=args.model_name,
             eval_only=args.eval_only,
             decay = args.decay,
-            sent_pooler = args.sent_pooler
+            sent_pooler = args.sent_pooler,
+            moral_weight=args.moral_weight
         )
 
     if model_H:
@@ -857,6 +955,9 @@ if __name__ == "__main__":
     parser.add_argument("--threshold", type=int, default=20, help="Minimum sentences per character")
     parser.add_argument("--moving_avg", action="store_true", help="Use moving average smoothing for metrics")
     parser.add_argument("--moving_avg_window", type=int, default=-1, help="Window size for moving average smoothing (-1 means no windowing)")
+    parser.add_argument("--decay", type=float, default=0.9, help="EMA decay for moving_avg pooler")
+    parser.add_argument("--sent_pooler", type=str, default="mean", choices=["mean", "attn", "moving_avg"],
+                        help="Sentence pooler type for two-stream pooling")
 
     args = parser.parse_args()
     main(args)
