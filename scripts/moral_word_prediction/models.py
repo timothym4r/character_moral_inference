@@ -69,8 +69,10 @@ class MoralDataset(Dataset):
             max_length=self.max_length
         )
 
-        target_id = self.tokenizer.convert_tokens_to_ids(row["target_word"])
-
+        tok = self.tokenizer.tokenize(row["target_word"])
+        assert len(tok) == 1
+        target_id = self.tokenizer.convert_tokens_to_ids(tok[0])
+        
         mask_positions = (encoding["input_ids"] == self.tokenizer.mask_token_id).nonzero(as_tuple=True)
         if len(mask_positions[1]) == 0:
             return {}  # you already filter these out upstream
@@ -172,3 +174,97 @@ class TwoStreamAttnPool(nn.Module):
         c = w[0] * c_spk + w[1] * c_act
         return c, c_spk, c_act, w
 
+class TwoStreamMeanPool(nn.Module):
+    def __init__(self, hidden_dim=768):
+        super().__init__()
+        # same fusion idea as your attn pooler
+        self.mix_logits = nn.Parameter(torch.zeros(2))
+
+    @staticmethod
+    def masked_mean(X, mask, eps=1e-9):
+        """
+        X:    B x T x D
+        mask: B x T  (1 valid, 0 pad)
+        """
+        m = mask.unsqueeze(-1)  # B x T x 1
+        num = (X * m).sum(dim=1)              # B x D
+        den = m.sum(dim=1).clamp(min=eps)     # B x 1
+        return num / den
+
+    def forward(self, spk_hist, spk_mask, act_hist, act_mask, spk_mean=None, act_mean=None):
+        spk_all_empty = (spk_mask.sum(dim=1) == 0)
+        act_all_empty = (act_mask.sum(dim=1) == 0)
+
+        c_spk = self.masked_mean(spk_hist, spk_mask)
+        c_act = self.masked_mean(act_hist, act_mask)
+
+        # fallback if empty (optional but consistent with your current design)
+        if spk_mean is not None:
+            c_spk = torch.where(spk_all_empty.unsqueeze(1), spk_mean, c_spk)
+        if act_mean is not None:
+            c_act = torch.where(act_all_empty.unsqueeze(1), act_mean, c_act)
+
+        w = torch.softmax(self.mix_logits, dim=0)  # (2,)
+        c = w[0] * c_spk + w[1] * c_act
+        return c, c_spk, c_act, w
+
+class TwoStreamMovingAvgPool(nn.Module):
+    def __init__(self, hidden_dim=768, decay=0.9, learn_decay=False):
+        super().__init__()
+        self.mix_logits = nn.Parameter(torch.zeros(2))
+
+        # Optionally learn decay (in (0,1)) using sigmoid parameterization
+        if learn_decay:
+            # initialize so sigmoid(param) ~= decay
+            init = torch.log(torch.tensor(decay) / (1 - torch.tensor(decay)))
+            self.decay_logit = nn.Parameter(init.clone().float())
+        else:
+            self.register_buffer("decay_const", torch.tensor(float(decay)))
+            self.decay_logit = None
+
+    def _decay(self):
+        if self.decay_logit is None:
+            return self.decay_const
+        return torch.sigmoid(self.decay_logit)
+
+    def ema_pool(self, X, mask):
+        """
+        X:    B x T x D
+        mask: B x T  (1 valid, 0 pad)
+        Returns B x D
+        """
+        B, T, D = X.shape
+        decay = self._decay().to(X.device)
+
+        # We'll do an EMA scan:
+        # h_t = decay*h_{t-1} + (1-decay)*x_t, but only when mask=1.
+        h = torch.zeros(B, D, device=X.device, dtype=X.dtype)
+        has_any = torch.zeros(B, 1, device=X.device, dtype=X.dtype)  # track if any valid has appeared
+
+        one_minus = (1.0 - decay)
+
+        for t in range(T):
+            mt = mask[:, t].unsqueeze(1)  # B x 1
+            xt = X[:, t, :]               # B x D
+
+            # update only where mt==1
+            h_new = decay * h + one_minus * xt
+            h = mt * h_new + (1.0 - mt) * h
+
+            has_any = torch.clamp(has_any + mt, max=1.0)
+
+        return h, has_any.squeeze(1)  # (B x D), (B,) indicates non-empty
+
+    def forward(self, spk_hist, spk_mask, act_hist, act_mask, spk_mean=None, act_mean=None):
+        c_spk, spk_nonempty = self.ema_pool(spk_hist, spk_mask)
+        c_act, act_nonempty = self.ema_pool(act_hist, act_mask)
+
+        # fallback if completely empty
+        if spk_mean is not None:
+            c_spk = torch.where((spk_nonempty == 0).unsqueeze(1), spk_mean, c_spk)
+        if act_mean is not None:
+            c_act = torch.where((act_nonempty == 0).unsqueeze(1), act_mean, c_act)
+
+        w = torch.softmax(self.mix_logits, dim=0)
+        c = w[0] * c_spk + w[1] * c_act
+        return c, c_spk, c_act, w
