@@ -8,8 +8,145 @@ from transformers import BertTokenizer
 import torch
 import torch.nn as nn
 
+# class MoralDataset(Dataset):
+#     def __init__(self, data, tokenizer=None, max_length=512, use_one_hot=False, char2id=None, embed_dim=768):
+#         self.data = data
+#         self.tokenizer = tokenizer or BertTokenizer.from_pretrained("bert-base-uncased")
+#         self.max_length = max_length
+#         self.use_one_hot = use_one_hot
+#         self.char2id = char2id
+#         self.embed_dim = embed_dim
+
+#         if self.use_one_hot and self.char2id is None:
+#             raise ValueError("char2id mapping must be provided when use_one_hot=True")
+
+#     def __len__(self):
+#         return len(self.data)
+
+#     def _to_embed_seq(self, maybe_list):
+#         """
+#         Converts a list (T x D) or tensor to a FloatTensor (T x D).
+#         Allows empty list -> (0 x D).
+#         """
+#         if maybe_list is None:
+#             return torch.zeros(0, self.embed_dim, dtype=torch.float32)
+
+#         if torch.is_tensor(maybe_list):
+#             x = maybe_list
+#         else:
+#             # JSON gives python lists; may be [] or list of lists
+#             if len(maybe_list) == 0:
+#                 return torch.zeros(0, self.embed_dim, dtype=torch.float32)
+#             x = torch.tensor(maybe_list)
+
+#         # ensure float32 and shape (T, D)
+#         x = x.to(dtype=torch.float32)
+#         if x.dim() == 1:
+#             # edge case: a single vector saved as [D] (shouldn’t happen, but be robust)
+#             x = x.unsqueeze(0)
+#         return x
+
+#     def _to_embed_vec(self, maybe_list):
+#         """
+#         Converts a list (D) or tensor to FloatTensor (D).
+#         """
+#         if maybe_list is None:
+#             return torch.zeros(self.embed_dim, dtype=torch.float32)
+#         if torch.is_tensor(maybe_list):
+#             x = maybe_list
+#         else:
+#             x = torch.tensor(maybe_list)
+#         return x.to(dtype=torch.float32)
+
+#     def __getitem__(self, idx):
+#         row = self.data[idx]
+
+#         # 1) tokenize target word into wordpieces
+#         target_toks = self.tokenizer.tokenize(row["target_word"])
+#         if len(target_toks) == 0:
+#             raise ValueError(f"Empty tokenization for target_word={row['target_word']}")
+
+#         # 2) ensure masked_sentence has the right number of [MASK] tokens
+#         masked_sentence = row["masked_sentence"]
+
+#         # how many masks are currently in the sentence?
+#         tmp = self.tokenizer(masked_sentence, return_tensors="pt", truncation=True, max_length=self.max_length)
+#         cur_num_masks = (tmp["input_ids"][0] == self.tokenizer.mask_token_id).sum().item()
+
+#         # Common case in your pipeline: exactly 1 [MAXK] in text, but target has k wordpieces
+#         # Expand that single [MASK] into k masks.
+#         if cur_num_masks == 1 and len(target_toks) > 1:
+#             masked_sentence = masked_sentence.replace(
+#                 self.tokenizer.mask_token,
+#                 " ".join([self.tokenizer.mask_token] * len(target_toks)),
+#                 1  # replace only the first occurrence
+#             )
+
+#         # If you already created multiple masks upstream, that's fine.
+#         # But now we must enforce: number of masks == number of target wordpieces
+#         encoding = self.tokenizer(
+#             masked_sentence,
+#             return_tensors="pt",
+#             padding="max_length",
+#             truncation=True,
+#             max_length=self.max_length
+#         )
+
+#         mask_positions = (encoding["input_ids"] == self.tokenizer.mask_token_id).nonzero(as_tuple=True)
+#         mask_indices = mask_positions[1].tolist()  # list of positions in the sequence
+
+#         if len(mask_indices) == 0:
+#             return {}  # or raise
+
+#         if len(mask_indices) != len(target_toks):
+#             # This indicates your masked_sentence and target_word are not aligned.
+#             # Better to skip than train on wrong supervision.
+#             # You can print for debugging:
+#             # print("Mismatch:", row["target_word"], target_toks, "masks:", len(mask_indices), masked_sentence)
+#             return {}
+
+#         target_ids = self.tokenizer.convert_tokens_to_ids(target_toks)
+#         if any(tid == self.tokenizer.unk_token_id for tid in target_ids):
+#             # weird / bad targets; skip
+#             return {}
+
+#         result = {
+#             "input_ids": encoding["input_ids"].squeeze(0),
+#             "attention_mask": encoding["attention_mask"].squeeze(0),
+
+#             # CHANGED: multi-token targets + multi mask indices
+#             "target_ids": torch.tensor(target_ids, dtype=torch.long),          # (k,)
+#             "mask_indices": torch.tensor(mask_indices, dtype=torch.long),      # (k,)
+
+#             "movie": row["movie"],
+#             "character": row["character"],
+#         }
+
+#         if self.use_one_hot:
+#             key = f"{row['movie']}_{row['character']}"
+#             result["character_id"] = torch.tensor(self.char2id[key], dtype=torch.long)
+#         else:
+#             result["spoken_mean"] = self._to_embed_vec(row.get("spoken_mean"))
+#             result["action_mean"] = self._to_embed_vec(row.get("action_mean"))
+#             result["spoken_history_embeds"] = self._to_embed_seq(row.get("spoken_history_embeds"))
+#             result["action_history_embeds"] = self._to_embed_seq(row.get("action_history_embeds"))
+
+#         return result
+
 class MoralDataset(Dataset):
-    def __init__(self, data, tokenizer=None, max_length=512, use_one_hot=False, char2id=None, embed_dim=768):
+    def __init__(
+        self,
+        data,
+        tokenizer=None,
+        max_length=512,
+        use_one_hot=False,
+        char2id=None,
+        embed_dim=768,
+        # NEW:
+        char_cache_dir=None,
+        max_history_per_type=200,
+        cache_max_chars=256,
+    ):
         self.data = data
         self.tokenizer = tokenizer or BertTokenizer.from_pretrained("bert-base-uncased")
         self.max_length = max_length
@@ -17,73 +154,70 @@ class MoralDataset(Dataset):
         self.char2id = char2id
         self.embed_dim = embed_dim
 
+        self.char_cache_dir = char_cache_dir
+        self.max_history_per_type = max_history_per_type
+        self.cache_max_chars = cache_max_chars
+
+        if (not self.use_one_hot) and (self.char_cache_dir is None):
+            raise ValueError("char_cache_dir must be provided when use_one_hot=False")
+
         if self.use_one_hot and self.char2id is None:
             raise ValueError("char2id mapping must be provided when use_one_hot=True")
+
+        # in-process cache: cache_key -> dict with tensors/indices
+        self._char_cache = {}
 
     def __len__(self):
         return len(self.data)
 
-    def _to_embed_seq(self, maybe_list):
-        """
-        Converts a list (T x D) or tensor to a FloatTensor (T x D).
-        Allows empty list -> (0 x D).
-        """
-        if maybe_list is None:
-            return torch.zeros(0, self.embed_dim, dtype=torch.float32)
+    def _load_char(self, cache_key: str):
+        if cache_key in self._char_cache:
+            return self._char_cache[cache_key]
 
-        if torch.is_tensor(maybe_list):
-            x = maybe_list
-        else:
-            # JSON gives python lists; may be [] or list of lists
-            if len(maybe_list) == 0:
-                return torch.zeros(0, self.embed_dim, dtype=torch.float32)
-            x = torch.tensor(maybe_list)
+        path = os.path.join(self.char_cache_dir, f"{cache_key}.pt")
+        obj = torch.load(path, map_location="cpu")
 
-        # ensure float32 and shape (T, D)
-        x = x.to(dtype=torch.float32)
-        if x.dim() == 1:
-            # edge case: a single vector saved as [D] (shouldn’t happen, but be robust)
-            x = x.unsqueeze(0)
-        return x
+        E = obj["embeddings"]   # [N, D] half CPU
+        stypes = obj["stypes"]  # list[str]
 
-    def _to_embed_vec(self, maybe_list):
-        """
-        Converts a list (D) or tensor to FloatTensor (D).
-        """
-        if maybe_list is None:
-            return torch.zeros(self.embed_dim, dtype=torch.float32)
-        if torch.is_tensor(maybe_list):
-            x = maybe_list
-        else:
-            x = torch.tensor(maybe_list)
-        return x.to(dtype=torch.float32)
+        # precompute indices for fast slicing
+        spoken_idx = [i for i, t in enumerate(stypes) if t == "spoken"]
+        action_idx = [i for i, t in enumerate(stypes) if t == "action"]
+
+        pack = {
+            "E": E,  # keep as half on CPU
+            "spoken_idx": torch.tensor(spoken_idx, dtype=torch.long),
+            "action_idx": torch.tensor(action_idx, dtype=torch.long),
+        }
+
+        self._char_cache[cache_key] = pack
+
+        # simple cache cap
+        if len(self._char_cache) > self.cache_max_chars:
+            self._char_cache.pop(next(iter(self._char_cache)))
+
+        return pack
 
     def __getitem__(self, idx):
         row = self.data[idx]
 
-        # 1) tokenize target word into wordpieces
+        # ---- (same as your current code) build token-level supervision ----
         target_toks = self.tokenizer.tokenize(row["target_word"])
         if len(target_toks) == 0:
-            raise ValueError(f"Empty tokenization for target_word={row['target_word']}")
+            return {}
 
-        # 2) ensure masked_sentence has the right number of [MASK] tokens
         masked_sentence = row["masked_sentence"]
 
-        # how many masks are currently in the sentence?
         tmp = self.tokenizer(masked_sentence, return_tensors="pt", truncation=True, max_length=self.max_length)
         cur_num_masks = (tmp["input_ids"][0] == self.tokenizer.mask_token_id).sum().item()
 
-        # Common case in your pipeline: exactly 1 [MAXK] in text, but target has k wordpieces
-        # Expand that single [MASK] into k masks.
         if cur_num_masks == 1 and len(target_toks) > 1:
             masked_sentence = masked_sentence.replace(
                 self.tokenizer.mask_token,
                 " ".join([self.tokenizer.mask_token] * len(target_toks)),
-                1  # replace only the first occurrence
+                1
             )
 
-        # If you already created multiple masks upstream, that's fine.
-        # But now we must enforce: number of masks == number of target wordpieces
         encoding = self.tokenizer(
             masked_sentence,
             return_tensors="pt",
@@ -93,43 +227,65 @@ class MoralDataset(Dataset):
         )
 
         mask_positions = (encoding["input_ids"] == self.tokenizer.mask_token_id).nonzero(as_tuple=True)
-        mask_indices = mask_positions[1].tolist()  # list of positions in the sequence
+        mask_indices = mask_positions[1].tolist()
 
         if len(mask_indices) == 0:
-            return {}  # or raise
-
+            return {}
         if len(mask_indices) != len(target_toks):
-            # This indicates your masked_sentence and target_word are not aligned.
-            # Better to skip than train on wrong supervision.
-            # You can print for debugging:
-            # print("Mismatch:", row["target_word"], target_toks, "masks:", len(mask_indices), masked_sentence)
             return {}
 
         target_ids = self.tokenizer.convert_tokens_to_ids(target_toks)
         if any(tid == self.tokenizer.unk_token_id for tid in target_ids):
-            # weird / bad targets; skip
             return {}
 
         result = {
             "input_ids": encoding["input_ids"].squeeze(0),
             "attention_mask": encoding["attention_mask"].squeeze(0),
-
-            # CHANGED: multi-token targets + multi mask indices
-            "target_ids": torch.tensor(target_ids, dtype=torch.long),          # (k,)
-            "mask_indices": torch.tensor(mask_indices, dtype=torch.long),      # (k,)
-
+            "target_ids": torch.tensor(target_ids, dtype=torch.long),
+            "mask_indices": torch.tensor(mask_indices, dtype=torch.long),
             "movie": row["movie"],
             "character": row["character"],
         }
 
+        # ---- one-hot mode unchanged ----
         if self.use_one_hot:
             key = f"{row['movie']}_{row['character']}"
             result["character_id"] = torch.tensor(self.char2id[key], dtype=torch.long)
-        else:
-            result["spoken_mean"] = self._to_embed_vec(row.get("spoken_mean"))
-            result["action_mean"] = self._to_embed_vec(row.get("action_mean"))
-            result["spoken_history_embeds"] = self._to_embed_seq(row.get("spoken_history_embeds"))
-            result["action_history_embeds"] = self._to_embed_seq(row.get("action_history_embeds"))
+            return result
+
+        # ---- NEW: build histories from cached per-character embeddings ----
+        cache_key = row["cache_key"]
+        hist_len = int(row["history_len"])  # history is < hist_len
+
+        pack = self._load_char(cache_key)
+        E = pack["E"]  # [N, D] half
+        spoken_idx = pack["spoken_idx"]
+        action_idx = pack["action_idx"]
+
+        # get indices < hist_len using boolean mask (fast because idx lists are much smaller than N)
+        spk_pos = spoken_idx[spoken_idx < hist_len]
+        act_pos = action_idx[action_idx < hist_len]
+
+        # cap to last K
+        K = self.max_history_per_type
+        if K is not None:
+            if spk_pos.numel() > K:
+                spk_pos = spk_pos[-K:]
+            if act_pos.numel() > K:
+                act_pos = act_pos[-K:]
+
+        spoken_hist = E.index_select(0, spk_pos).float() if spk_pos.numel() > 0 else torch.zeros(0, self.embed_dim)
+        action_hist = E.index_select(0, act_pos).float() if act_pos.numel() > 0 else torch.zeros(0, self.embed_dim)
+
+        # means (for fallback in attn / moving avg)
+        spoken_mean = spoken_hist.mean(dim=0) if spoken_hist.numel() > 0 else torch.zeros(self.embed_dim)
+        action_mean = action_hist.mean(dim=0) if action_hist.numel() > 0 else torch.zeros(self.embed_dim)
+
+        # IMPORTANT: keep the same keys your collate expects
+        result["spoken_history_embeds"] = spoken_hist
+        result["action_history_embeds"] = action_hist
+        result["spoken_mean"] = spoken_mean
+        result["action_mean"] = action_mean
 
         return result
 
