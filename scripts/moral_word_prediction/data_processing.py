@@ -74,7 +74,7 @@ def data_preprocess(
     save_fp16=True               # store history embeds as float16 to reduce JSON size
 ):
     os.makedirs(output_dir, exist_ok=True)
-    char_cache_dir = os.path.join(output_dir, "char_cache")
+    char_cache_dir = os.path.join(output_dir, f"char_cache_{pooling_method}")
     os.makedirs(char_cache_dir, exist_ok=True)
 
     if sentence_mask_type is not None:
