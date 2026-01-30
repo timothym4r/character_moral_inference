@@ -875,8 +875,7 @@ def main(args):
             with open(os.path.join(args.output_dir, "char2id.json"), "w") as f:
                 json.dump(char2id, f, indent=2)
 
-
-        char_cache_dir = os.path.join(args.input_dir, "char_cache")
+        char_cache_dir = os.path.join(args.input_dir, f"char_cache_{args.pooling_method}")
 
         train_dataset = MoralDataset(
             train_data,
