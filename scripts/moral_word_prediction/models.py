@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 from transformers import BertTokenizer
 import torch
 import torch.nn as nn
+import os
 
 # class MoralDataset(Dataset):
 #     def __init__(self, data, tokenizer=None, max_length=512, use_one_hot=False, char2id=None, embed_dim=768):
