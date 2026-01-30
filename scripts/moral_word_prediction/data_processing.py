@@ -28,7 +28,7 @@ def safe_mean(x: torch.Tensor, dim=0, out_dim=None):
         return torch.zeros(out_dim, dtype=torch.float32)
     return x.mean(dim=dim)
  
-def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, pooling_method="mean"):
+def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=128, pooling_method="mean"):
     all_embeddings = []
     for i in range(0, len(sentences), batch_size):
         batch = sentences[i:i+batch_size]
@@ -56,9 +56,6 @@ def get_sentence_embeddings(sentences, model, tokenizer, device, batch_size=64, 
                 raise ValueError(f"Unsupported pooling method: {pooling_method}")
 
             all_embeddings.append(sentence_embeddings.cpu())
-
-        torch.cuda.empty_cache()
-        gc.collect()
 
     return torch.cat(all_embeddings, dim=0)
 
