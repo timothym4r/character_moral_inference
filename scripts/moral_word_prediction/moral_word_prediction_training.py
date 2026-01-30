@@ -876,8 +876,25 @@ def main(args):
                 json.dump(char2id, f, indent=2)
 
 
-        train_dataset = MoralDataset(train_data, tokenizer=tokenizer, use_one_hot=args.use_one_hot, char2id=char2id)
-        val_dataset = MoralDataset(test_data, tokenizer=tokenizer, use_one_hot=args.use_one_hot, char2id=char2id)
+        char_cache_dir = os.path.join(args.input_dir, "char_cache")
+
+        train_dataset = MoralDataset(
+            train_data,
+            tokenizer=tokenizer,
+            use_one_hot=args.use_one_hot,
+            char2id=char2id,
+            char_cache_dir=char_cache_dir,
+            max_history_per_type=200
+        )
+
+        val_dataset = MoralDataset(
+            test_data,
+            tokenizer=tokenizer,
+            use_one_hot=args.use_one_hot,
+            char2id=char2id,
+            char_cache_dir=char_cache_dir,
+            max_history_per_type=200
+        )
 
         model_H, character_embedding, bert_lm, pooler = train_mlm_model(
             train_dataset=train_dataset,
