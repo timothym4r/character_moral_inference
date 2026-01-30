@@ -240,7 +240,7 @@ def main(args):
         sentence_mask_type=args.sentence_mask_type,
         add_type_tokens=args.add_type_tokens,
         store_history_embeddings=args.store_history_embeddings,
-        max_history_per_type=None,
+        max_history_per_type=args.max_history_per_type,
         save_fp16=True,
     )
 
