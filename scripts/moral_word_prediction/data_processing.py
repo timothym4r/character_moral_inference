@@ -74,6 +74,8 @@ def data_preprocess(
     save_fp16=True               # store history embeds as float16 to reduce JSON size
 ):
     os.makedirs(output_dir, exist_ok=True)
+    char_cache_dir = os.path.join(output_dir, "char_cache")
+    os.makedirs(char_cache_dir, exist_ok=True)
 
     if sentence_mask_type is not None:
         train_path = os.path.join(output_dir, f"train_data_{pooling_method}_{threshold}_{sentence_mask_type}.json")
@@ -130,6 +132,18 @@ def data_preprocess(
                     typed_sentences, model, tokenizer, model.device, pooling_method=pooling_method
                 )  # [num_sentences, hidden]
 
+                # Save per-character embedding matrix + types
+                cache_key = f"{movie}__{character}".replace("/", "_")
+                cache_path = os.path.join(char_cache_dir, f"{cache_key}.pt")
+
+                torch.save(
+                    {
+                        "embeddings": embeddings.half(),      # [N, 768] on CPU
+                        "stypes": stypes.tolist(),            # list of "spoken"/"action"
+                    },
+                    cache_path
+                )
+
                 masked_sentences = moral_dialogue_masked[movie][character]
                 moral_words = ground_truths[movie][character]
 
@@ -164,19 +178,29 @@ def data_preprocess(
                     if add_type_tokens:
                         cur_masked_sentence = prefix_by_type(cur_masked_sentence, cur_type)
 
+                    # record = {
+                    #     "movie": movie,
+                    #     "character": character,
+                    #     "sentence_type": str(cur_type),  # "spoken" or "action"
+                    #     "masked_sentence": cur_masked_sentence,
+                    #     "target_word": moral_words[idx],
+                    #     "history_len": int(idx),
+
+                    #     # Two-stream pooled baselines (useful ablations / fallback)
+                    #     "spoken_mean": spoken_mean.tolist(),
+                    #     "action_mean": action_mean.tolist(),
+                    #     "spoken_count": int(spoken_embeds.size(0)),
+                    #     "action_count": int(action_embeds.size(0)),
+                    # }
                     record = {
                         "movie": movie,
                         "character": character,
-                        "sentence_type": str(cur_type),  # "spoken" or "action"
+                        "cache_key": cache_key,           # NEW
+                        "history_len": int(idx),          # already there
+
+                        "sentence_type": str(cur_type),
                         "masked_sentence": cur_masked_sentence,
                         "target_word": moral_words[idx],
-                        "history_len": int(idx),
-
-                        # Two-stream pooled baselines (useful ablations / fallback)
-                        "spoken_mean": spoken_mean.tolist(),
-                        "action_mean": action_mean.tolist(),
-                        "spoken_count": int(spoken_embeds.size(0)),
-                        "action_count": int(action_embeds.size(0)),
                     }
 
                     # Proper attention-pooling inputs: store sequences per type
@@ -236,7 +260,7 @@ def main(args):
         reprocess=args.reprocess,
         sentence_mask_type=args.sentence_mask_type,
         add_type_tokens=args.add_type_tokens,
-        store_history_embeddings=args.store_history_embeddings,
+        store_history_embeddings=False,
         max_history_per_type=args.max_history_per_type,
         save_fp16=True,
     )
