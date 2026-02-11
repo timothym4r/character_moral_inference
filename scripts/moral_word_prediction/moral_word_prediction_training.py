@@ -748,7 +748,7 @@ def evaluate_mlm(model_H, dataset, tokenizer, bert_lm, pooler=None, use_one_hot=
 
             # count valid masked tokens
             total += int(span_mask.sum().item())
-            
+
             # ---- SANITY CHECK PRINTING (hard-coded) ----
             if printed_success < 3 or printed_failure < 3:
                 seen_valid_tokens += valid_targets.numel()
@@ -996,9 +996,6 @@ def main(args):
     if character_embedding:
         character_embedding_path = os.path.join(args.output_dir, "character_embedding.pth")
         torch.save(character_embedding.state_dict(), character_embedding_path)
-
-    else:
-        print("Model already exists. Use --retrain to overwrite.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train MLM Model with Character Embeddings")
