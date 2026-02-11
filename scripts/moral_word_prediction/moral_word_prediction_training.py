@@ -480,7 +480,7 @@ def train_mlm_model(
                     with torch.no_grad():
                         hidden = encoder(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
 
-                # inject
+                # injection
                 B, L = mask_indices.shape
                 for i in range(B):
                     for j in range(L):
@@ -488,7 +488,6 @@ def train_mlm_model(
                         if mi < 0:   # padding
                             continue
                         hidden[i, mi, :] = hidden[i, mi, :] + recon_vec[i]
-
 
                 lm_head = get_lm_head(bert_lm)
                 logits = lm_head(hidden)
@@ -664,6 +663,10 @@ def evaluate_mlm(model_H, dataset, tokenizer, bert_lm, pooler=None, use_one_hot=
     elif hasattr(bert_lm, "roberta"):
         encoder = bert_lm.roberta
 
+    printed_success = 0
+    printed_failure = 0
+    seen_valid_tokens = 0
+
     with torch.no_grad():
         for batch in loader:
             if batch is None:
@@ -745,7 +748,62 @@ def evaluate_mlm(model_H, dataset, tokenizer, bert_lm, pooler=None, use_one_hot=
 
             # count valid masked tokens
             total += int(span_mask.sum().item())
+            
+            # ---- SANITY CHECK PRINTING (hard-coded) ----
+            if printed_success < 3 or printed_failure < 3:
+                seen_valid_tokens += valid_targets.numel()
 
+                if seen_valid_tokens >= 0:   # hard-coded "min_seen_before_print"
+                    valid_flat_indices = valid.nonzero(as_tuple=True)[0]  # indices in [0, B*L)
+
+                    topk_vals, topk_idxs = torch.topk(valid_probs, k=10, dim=-1)  # hard-coded top-10
+
+                    for n in range(valid_targets.size(0)):
+                        if printed_success >= 3 and printed_failure >= 3:
+                            break
+
+                        gold_id = int(valid_targets[n].item())
+                        preds = topk_idxs[n].tolist()
+                        is_success = gold_id in preds
+
+                        if is_success and printed_success >= 3:
+                            continue
+                        if (not is_success) and printed_failure >= 3:
+                            continue
+
+                        flat_idx = int(valid_flat_indices[n].item())
+                        b = flat_idx // L
+                        j = flat_idx % L
+                        mi = int(mask_indices[b, j].item())
+
+                        gold_tok = tokenizer.convert_ids_to_tokens([gold_id])[0]
+                        pred_toks = [tokenizer.convert_ids_to_tokens([pid])[0] for pid in preds]
+
+                        toks = tokenizer.convert_ids_to_tokens(input_ids[b].tolist())
+                        lo = max(0, mi - 25)
+                        hi = min(len(toks), mi + 26)
+                        ctx = toks[lo:hi]
+                        ctx[mi - lo] = f"<<{ctx[mi - lo]}>>"
+
+                        print("\n" + "=" * 80)
+                        print("SANITY CHECK EXAMPLE")
+                        print(f"b={b}, mask_slot={j}, mask_pos={mi}")
+                        print("-" * 80)
+                        print("Context:")
+                        print(" ".join(ctx))
+                        print("-" * 80)
+                        print("GOLD:", gold_tok)
+                        print("TOP-10:")
+                        for r, tok in enumerate(pred_toks, start=1):
+                            mark = "  <-- GOLD" if tok == gold_tok else ""
+                            print(f"{r:2d}. {tok}{mark}")
+
+                        if is_success:
+                            print(f"SUCCESS (rank {preds.index(gold_id) + 1})")
+                            printed_success += 1
+                        else:
+                            print("FAILURE (gold not in top-10)")
+                            printed_failure += 1
 
     results = {"cross_entropy": total_ce_loss / total if total > 0 else 0}
     results["perplexity"] = torch.exp(torch.tensor(results["cross_entropy"])).item()
