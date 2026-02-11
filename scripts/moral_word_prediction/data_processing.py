@@ -66,7 +66,7 @@ def data_preprocess(
     threshold=20,
     pooling_method="mean",
     reprocess=False,
-    sentence_mask_type=None,
+    sentence_mask_type=None, # TODO: Remove this useless garbage
     # NEW FLAGS
     add_type_tokens=True,
     store_history_embeddings=True,
@@ -148,7 +148,7 @@ def data_preprocess(
                 moral_words = ground_truths[movie][character]
 
                 for idx in range(threshold, num_sentences):
-                    if sentence_mask_type is not None and mask_prediction_index[movie][character][idx] == "No":
+                    if sentence_mask_type is not None and mask_prediction_index[movie][character][idx] != "Yes":
                         continue
 
                     # History up to idx (exclusive)
